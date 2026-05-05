@@ -1,0 +1,45 @@
+/* ── Font rendering ─────────────────────────────────────────────────────────
+   Night mode: antialiased softens bright text on dark backgrounds (less glare).
+   Day mode:   subpixel-antialiased gives dark text its full weight on light
+               backgrounds — sharper, denser, much easier to read.
+   ────────────────────────────────────────────────────────────────────────── */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html.day-mode {
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* ── Day mode global text sharpness ─────────────────────────────────────── */
+
+/* Ensure body text renders with full contrast on white cards */
+html.day-mode body {
+  font-optical-sizing: auto;
+}
+
+/* Inputs, selects, textareas in day mode: use standard smoothing */
+html.day-mode input,
+html.day-mode select,
+html.day-mode textarea,
+html.day-mode button {
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Tables get slightly tighter letter-spacing in day mode for crispness */
+html.day-mode table {
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* ── Select dropdown: day mode ──────────────────────────────────────────── */
+/* Browser select options inherit the select's bg/color via inline styles,
+   but the dropdown panel itself needs a light background in day mode.  */
+html.day-mode select option {
+  background: #f8fafc;
+  color: #1e293b;
+}
