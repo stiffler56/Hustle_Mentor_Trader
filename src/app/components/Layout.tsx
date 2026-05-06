@@ -13,6 +13,7 @@ import {
   Database,
   Sun,
   Moon,
+  HardDrive,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { useChallengeContext } from '../data/ChallengeContext';
@@ -25,6 +26,7 @@ const navItems = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/challenge', label: '30-Day Challenge', icon: Flame },
   { to: '/notion', label: 'Notion Sync', icon: Database },
+  { to: '/data', label: 'Data Manager', icon: HardDrive },
 ];
 
 function EdgeCard({ trades }: { trades: ReturnType<typeof useTradesContext>['trades'] }) {

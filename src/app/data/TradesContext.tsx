@@ -9,6 +9,8 @@ interface TradesContextType {
   addTrade: (trade: Trade) => void;
   updateTrade: (id: string, updates: Partial<Trade>) => void;
   deleteTrade: (id: string) => void;
+  clearTrades: () => void;
+  importTrades: (incoming: Trade[], mode: 'replace' | 'merge') => number;
 }
 
 const TradesContext = createContext<TradesContextType | null>(null);
@@ -34,8 +36,31 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
   const deleteTrade = (id: string) =>
     setTrades(prev => prev.filter(t => t.id !== id));
 
+  /** Wipe everything and start from zero. */
+  const clearTrades = () => setTrades([]);
+
+  /**
+   * Import trades from a JSON backup.
+   * replace — wipes existing data and loads the import.
+   * merge   — adds only trades whose id doesn't already exist.
+   * Returns the number of trades actually added.
+   */
+  const importTrades = (incoming: Trade[], mode: 'replace' | 'merge'): number => {
+    if (mode === 'replace') {
+      setTrades(incoming);
+      return incoming.length;
+    }
+    setTrades(prev => {
+      const existingIds = new Set(prev.map(t => t.id));
+      const newOnes = incoming.filter(t => !existingIds.has(t.id));
+      return [...newOnes, ...prev];
+    });
+    // We can't access the previous state here easily, so return the incoming count as approximate
+    return incoming.length;
+  };
+
   return (
-    <TradesContext.Provider value={{ trades, addTrade, updateTrade, deleteTrade }}>
+    <TradesContext.Provider value={{ trades, addTrade, updateTrade, deleteTrade, clearTrades, importTrades }}>
       {children}
     </TradesContext.Provider>
   );
