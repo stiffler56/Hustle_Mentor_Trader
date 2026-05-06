@@ -6,6 +6,7 @@ import Journal from './pages/Journal';
 import Analytics from './pages/Analytics';
 import Challenge from './pages/Challenge';
 import NotionSync from './pages/NotionSync';
+import DataManager from './pages/DataManager';
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: 'analytics', Component: Analytics },
       { path: 'challenge', Component: Challenge },
       { path: 'notion', Component: NotionSync },
+      { path: 'data', Component: DataManager },
     ],
   },
 ]);
