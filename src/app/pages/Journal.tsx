@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Trash2, CheckCircle2, ChevronDown, ChevronUp, Search,
   Image, Video, ExternalLink, Play, Calendar, ChevronLeft, ChevronRight, X,
+  Pencil,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { useTheme } from '../data/ThemeContext';
 import { ImageUpload } from '../components/ImageUpload';
-import type { Trade, TradeResult } from '../data/types';
+import { calculateScore } from '../utils/scoring';
+import type { Trade, TradeResult, Session, Trend, OrderType, Strategy, Decision } from '../data/types';
 
 // ─── Badges ────────────────────────────────────────────────────────────────
 function DecisionBadge({ d }: { d: string }) {
@@ -401,10 +403,341 @@ function LogResultModal({
   );
 }
 
+// ─── Edit Trade Modal ──────────────────────────────────────────────────────
+function EditTradeModal({ trade, onClose, onSave }: {
+  trade: Trade;
+  onClose: () => void;
+  onSave: (updates: Partial<Trade>) => void;
+}) {
+  const { colors } = useTheme();
+
+  // Basic fields
+  const [date, setDate]             = useState(trade.date);
+  const [pair, setPair]             = useState(trade.pair);
+  const [orderType, setOrderType]   = useState<OrderType>(trade.orderType);
+  const [trend, setTrend]           = useState<Trend>(trade.trend);
+  const [session, setSession]       = useState<Session>(trade.session);
+  const [strategy, setStrategy]     = useState<Strategy>(trade.strategy);
+  const [bais, setBais]             = useState(trade.bais || '');
+
+  // Metrics
+  const [mentalFocus,    setMentalFocus]    = useState(trade.mentalFocus);
+  const [confluences,    setConfluences]    = useState(trade.confluences);
+  const [buyLowSellHigh, setBuyLowSellHigh] = useState(trade.buyLowSellHigh);
+  const [bias,           setBias]           = useState(trade.bias);
+  const [risk,           setRisk]           = useState(String(trade.risk));
+  const [rrRatio,        setRrRatio]        = useState(String(trade.rrRatio));
+
+  // Result
+  const [result,   setResult]   = useState<TradeResult | ''>(trade.result ?? '');
+  const [pnl,      setPnl]      = useState(trade.pnl !== undefined ? String(trade.pnl) : '');
+  const [notes,    setNotes]    = useState(trade.notes || '');
+  const [videoUrl, setVideoUrl] = useState(trade.reviewVideoUrl || '');
+
+  // Screenshots
+  const [ssBefore1,  setSsBefore1]  = useState<string | undefined>(trade.screenshotBefore);
+  const [ssBefore2,  setSsBefore2]  = useState<string | undefined>(trade.screenshotBefore2);
+  const [ssAfter1,   setSsAfter1]   = useState<string | undefined>(trade.screenshotAfter);
+  const [ssAfter2,   setSsAfter2]   = useState<string | undefined>(trade.screenshotAfter2);
+
+  // Live score
+  const breakdown = calculateScore({
+    mentalFocus, confluences, buyLowSellHigh, bias,
+    session, risk: Number(risk) || 1,
+  });
+  const score = breakdown.total;
+  const decision = breakdown.decision;
+
+  const decisionColor = decision === 'TAKE' ? '#10b981' : decision === 'WAIT' ? '#eab308' : '#f87171';
+  const scoreColor    = score >= 75 ? '#10b981' : score >= 55 ? '#eab308' : '#f87171';
+
+  const getVideoPlatform = (url: string) => {
+    if (!url) return null;
+    if (url.includes('youtube') || url.includes('youtu.be')) return 'YouTube';
+    if (url.includes('loom.com'))         return 'Loom';
+    if (url.includes('tradingview.com'))  return 'TradingView';
+    if (url.includes('vimeo.com'))        return 'Vimeo';
+    return 'Video';
+  };
+
+  const handleSave = () => {
+    const resultVal = result || undefined;
+    onSave({
+      date, pair, orderType, trend, session, strategy, bais,
+      mentalFocus, confluences, buyLowSellHigh, bias,
+      risk: Number(risk) || 1,
+      rrRatio: Number(rrRatio) || 2,
+      score, decision,
+      result: resultVal as TradeResult | undefined,
+      pnl: pnl !== '' ? Number(pnl) : undefined,
+      notes,
+      status: resultVal ? 'CLOSED' : 'OPEN',
+      reviewVideoUrl: videoUrl || undefined,
+      screenshotBefore:  ssBefore1,
+      screenshotBefore2: ssBefore2,
+      screenshotAfter:   ssAfter1,
+      screenshotAfter2:  ssAfter2,
+    });
+  };
+
+  // ── Slider helper ──────────────────────────────────────────────────────
+  const Slider = ({ label, value, onChange, max, color }: {
+    label: string; value: number; onChange: (v: number) => void; max: number; color: string;
+  }) => (
+    <div>
+      <div className="flex justify-between mb-1.5">
+        <span className="text-xs" style={{ color: colors.textMuted }}>{label}</span>
+        <span className="text-xs" style={{ color }}>{value} / {max}</span>
+      </div>
+      <input type="range" min={0} max={max} value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+        style={{ accentColor: color }} />
+    </div>
+  );
+
+  const inputStyle = {
+    background: colors.inputBg,
+    border: `1px solid ${colors.border}`,
+    color: colors.text,
+    outline: 'none',
+  };
+
+  const selectStyle = {
+    ...inputStyle,
+    cursor: 'pointer',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative rounded-2xl w-full overflow-y-auto"
+        style={{ background: colors.surface, border: `1px solid ${colors.border}`, maxWidth: 680, maxHeight: '92vh' }}>
+
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
+          style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
+          <div>
+            <p className="text-base" style={{ color: colors.text }}>Edit Trade</p>
+            <p className="text-xs mt-0.5" style={{ color: colors.textMuted }}>
+              {trade.pair} · {trade.date} · {trade.session}
+            </p>
+          </div>
+          {/* Live score pill */}
+          <div className="flex items-center gap-3">
+            <div className="text-center px-3 py-1.5 rounded-xl"
+              style={{ background: `${scoreColor}18`, border: `1px solid ${scoreColor}40` }}>
+              <p className="text-xs" style={{ color: colors.textMuted }}>Score</p>
+              <p className="text-lg leading-none" style={{ color: scoreColor }}>{score}</p>
+            </div>
+            <div className="text-center px-3 py-1.5 rounded-xl"
+              style={{ background: `${decisionColor}18`, border: `1px solid ${decisionColor}40` }}>
+              <p className="text-xs" style={{ color: colors.textMuted }}>Decision</p>
+              <p className="text-sm leading-none" style={{ color: decisionColor }}>{decision}</p>
+            </div>
+            <button onClick={onClose} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">
+              <X size={18} style={{ color: colors.text }} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+
+          {/* ── Section 1: Trade Details ── */}
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>Trade Details</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Date</label>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Pair</label>
+                <input type="text" value={pair} onChange={e => setPair(e.target.value.toUpperCase())}
+                  placeholder="XAUUSD" className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Order Type</label>
+                <select value={orderType} onChange={e => setOrderType(e.target.value as OrderType)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={selectStyle}>
+                  <option>Buy</option>
+                  <option>Sell</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Trend</label>
+                <select value={trend} onChange={e => setTrend(e.target.value as Trend)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={selectStyle}>
+                  <option>Bullish</option>
+                  <option>Bearish</option>
+                  <option>Ranging</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Session</label>
+                <select value={session} onChange={e => setSession(e.target.value as Session)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={selectStyle}>
+                  <option>New York</option>
+                  <option>London</option>
+                  <option>Tokyo</option>
+                  <option>Sydney</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Strategy</label>
+                <select value={strategy} onChange={e => setStrategy(e.target.value as Strategy)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={selectStyle}>
+                  <option>D1/H4 FVG</option>
+                  <option>Liquidity</option>
+                  <option>Order Block</option>
+                  <option>ICT Concept</option>
+                  <option>Support/Resistance</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Setup / BAIS Description</label>
+              <input type="text" value={bais} onChange={e => setBais(e.target.value)}
+                placeholder="e.g. FVG + OB confluence at 3310"
+                className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+            </div>
+          </div>
+
+          {/* ── Section 2: Quality Metrics ── */}
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>Quality Metrics</p>
+            <div className="rounded-xl p-4 space-y-4" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
+              <Slider label="Mental Focus" value={mentalFocus} onChange={setMentalFocus} max={30}
+                color={mentalFocus >= 20 ? '#10b981' : mentalFocus >= 12 ? '#eab308' : '#f87171'} />
+              <Slider label="Confluences" value={confluences} onChange={setConfluences} max={4}
+                color={confluences >= 3 ? '#10b981' : confluences >= 2 ? '#eab308' : '#f87171'} />
+              <Slider label="Buy Low / Sell High" value={buyLowSellHigh} onChange={setBuyLowSellHigh} max={30}
+                color={buyLowSellHigh >= 20 ? '#10b981' : buyLowSellHigh >= 12 ? '#eab308' : '#f87171'} />
+              <Slider label="Bias Alignment" value={bias} onChange={setBias} max={30}
+                color={bias >= 20 ? '#10b981' : bias >= 12 ? '#eab308' : '#f87171'} />
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>% Risk</label>
+                  <input type="number" step="0.5" min="0.1" max="5" value={risk}
+                    onChange={e => setRisk(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm"
+                    style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>R:R Ratio</label>
+                  <input type="number" step="0.5" min="0.5" max="20" value={rrRatio}
+                    onChange={e => setRrRatio(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm"
+                    style={inputStyle} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 3: Result & P&L ── */}
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>Result & P&L</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {/* Result picker */}
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Result</label>
+                <div className="flex gap-2">
+                  {(['', 'WIN', 'LOSS', 'BE'] as const).map(r => {
+                    const c = r === 'WIN' ? '#10b981' : r === 'LOSS' ? '#f87171' : r === 'BE' ? '#60a5fa' : colors.textMuted;
+                    const isActive = result === r;
+                    return (
+                      <button key={r || 'open'} onClick={() => setResult(r)}
+                        className="flex-1 py-2 rounded-lg text-xs transition-all"
+                        style={{
+                          background: isActive ? `${c}22` : 'transparent',
+                          border: `1px solid ${isActive ? c : colors.border}`,
+                          color: isActive ? c : colors.textMuted,
+                        }}>
+                        {r || 'Open'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* P&L */}
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>P&L ($)</label>
+                <input type="number" placeholder={result === 'WIN' ? '+312' : result === 'LOSS' ? '-195' : '0'}
+                  value={pnl} onChange={e => setPnl(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+              </div>
+            </div>
+            {/* Notes */}
+            <div className="mb-3">
+              <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>Notes</label>
+              <textarea rows={2} placeholder="What happened? What did you learn?"
+                value={notes} onChange={e => setNotes(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm resize-none"
+                style={inputStyle} />
+            </div>
+            {/* Review Video */}
+            <div>
+              <label className="block text-xs mb-1.5 flex items-center gap-1.5" style={{ color: colors.textMuted }}>
+                <Video size={11} /> Review Video Link
+              </label>
+              <div className="relative">
+                <input type="url" placeholder="https://youtube.com/... or loom.com/..."
+                  value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2.5 text-sm pr-24" style={{
+                    ...inputStyle,
+                    border: `1px solid ${getVideoPlatform(videoUrl) ? '#7c3aed' : colors.border}`,
+                  }} />
+                {getVideoPlatform(videoUrl) && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(124,58,237,0.2)', color: '#a78bfa' }}>
+                    {getVideoPlatform(videoUrl)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 4: Screenshots ── */}
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-3" style={{ color: '#f59e0b' }}>Chart Screenshots</p>
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: colors.textMuted }}>Before Entry</p>
+              <div className="grid grid-cols-2 gap-3">
+                <ImageUpload label="Before #1" hint="Setup chart" value={ssBefore1} onChange={setSsBefore1} />
+                <ImageUpload label="Before #2" hint="Higher TF" value={ssBefore2} onChange={setSsBefore2} />
+              </div>
+              <p className="text-xs mt-1" style={{ color: colors.textMuted }}>After Exit</p>
+              <div className="grid grid-cols-2 gap-3">
+                <ImageUpload label="After #1" hint="Exit chart" value={ssAfter1} onChange={setSsAfter1} />
+                <ImageUpload label="After #2" hint="Higher TF" value={ssAfter2} onChange={setSsAfter2} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 flex gap-3 px-6 py-4"
+          style={{ background: colors.surface, borderTop: `1px solid ${colors.border}` }}>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm"
+            style={{ border: `1px solid ${colors.border}`, color: colors.textMuted }}>
+            Cancel
+          </button>
+          <button onClick={handleSave}
+            className="flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000' }}>
+            <CheckCircle2 size={14} /> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Trade Row ─────────────────────────────────────────────────────────────
-function TradeRow({ trade, onLogResult, onDelete }: {
+function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
   trade: Trade;
   onLogResult: (t: Trade) => void;
+  onEdit: (t: Trade) => void;
   onDelete: (id: string) => void;
 }) {
   const { colors } = useTheme();
@@ -449,6 +782,11 @@ function TradeRow({ trade, onLogResult, onDelete }: {
               <button onClick={() => onLogResult(trade)} className="text-xs px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
                 style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>Log Result</button>
             )}
+            <button onClick={() => onEdit(trade)}
+              className="opacity-50 hover:opacity-100 transition-opacity"
+              title="Edit trade">
+              <Pencil size={13} style={{ color: colors.textSub }} />
+            </button>
             <button onClick={() => onDelete(trade.id)} className="opacity-40 hover:opacity-80 transition-opacity">
               <Trash2 size={13} style={{ color: '#f87171' }} />
             </button>
@@ -548,7 +886,8 @@ export default function Journal() {
   const [filterResult, setFilterResult] = useState('ALL');
   const [filterSession, setFilterSession] = useState('ALL');
   const [search, setSearch] = useState('');
-  const [logTarget, setLogTarget] = useState<Trade | null>(null);
+  const [logTarget, setLogTarget]   = useState<Trade | null>(null);
+  const [editTarget, setEditTarget] = useState<Trade | null>(null);
   const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
   const [customStart, setCustomStart] = useState<string | null>(null);
   const [customEnd, setCustomEnd] = useState<string | null>(null);
@@ -579,6 +918,12 @@ export default function Journal() {
     setLogTarget(null);
   };
 
+  const handleSaveEdit = (updates: Partial<Trade>) => {
+    if (!editTarget) return;
+    updateTrade(editTarget.id, updates);
+    setEditTarget(null);
+  };
+
   const totalPnL = filtered.filter(t => t.pnl !== undefined).reduce((a, t) => a + (t.pnl ?? 0), 0);
   const wins = filtered.filter(t => t.result === 'WIN').length;
   const losses = filtered.filter(t => t.result === 'LOSS').length;
@@ -591,7 +936,7 @@ export default function Journal() {
   return (
     <div className="p-4 lg:p-6 space-y-5">
       {logTarget && <LogResultModal trade={logTarget} onClose={() => setLogTarget(null)} onSave={handleLogResult} />}
-
+      {editTarget && <EditTradeModal trade={editTarget} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -659,7 +1004,7 @@ export default function Journal() {
                   </td>
                 </tr>
               ) : (
-                filtered.map(t => <TradeRow key={t.id} trade={t} onLogResult={setLogTarget} onDelete={deleteTrade} />)
+                filtered.map(t => <TradeRow key={t.id} trade={t} onLogResult={setLogTarget} onEdit={setEditTarget} onDelete={deleteTrade} />)
               )}
             </tbody>
           </table>

@@ -7,6 +7,7 @@ import Analytics from './pages/Analytics';
 import Challenge from './pages/Challenge';
 import NotionSync from './pages/NotionSync';
 import DataManager from './pages/DataManager';
+import GitHubSyncPage from './pages/GitHubSync';
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
       { path: 'challenge', Component: Challenge },
       { path: 'notion', Component: NotionSync },
       { path: 'data', Component: DataManager },
+      { path: 'github', Component: GitHubSyncPage },
     ],
   },
 ]);

@@ -14,8 +14,14 @@ import {
   Sun,
   Moon,
   HardDrive,
+  Cloud,
+  RefreshCw,
+  LogOut,
+  Github,
+  Loader2,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
+import { useAuthContext } from '../data/AuthContext';
 import { useChallengeContext } from '../data/ChallengeContext';
 import { useTheme } from '../data/ThemeContext';
 
@@ -25,7 +31,8 @@ const navItems = [
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/challenge', label: '30-Day Challenge', icon: Flame },
-  { to: '/notion', label: 'Notion Sync', icon: Database },
+  { to: '/notion', label: 'Notion Import', icon: Database },
+  { to: '/github', label: 'GitHub Sync', icon: Github },
   { to: '/data', label: 'Data Manager', icon: HardDrive },
 ];
 
@@ -61,6 +68,76 @@ function EdgeCard({ trades }: { trades: ReturnType<typeof useTradesContext>['tra
   );
 }
 
+// ─── Cloud Sync Panel ──────────────────────────────────────────────────────
+function CloudSyncPanel() {
+  const { colors } = useTheme();
+  const { isAuthenticated, userEmail, logout } = useAuthContext();
+  const { syncStatus, lastSynced, syncNow, syncError } = useTradesContext();
+
+  const fmt = (d: Date | null) => {
+    if (!d) return '';
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 10) return 'Just now';
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const dot = syncStatus === 'synced'  ? { color: '#10b981', label: 'Synced',   pulse: false }
+            : syncStatus === 'syncing' ? { color: '#f59e0b', label: 'Syncing…', pulse: true  }
+            : syncStatus === 'error'   ? { color: '#f87171', label: 'Error',    pulse: false }
+            :                            { color: '#374151', label: 'Offline',  pulse: false };
+
+  if (!isAuthenticated) return null;
+
+  return (
+    <div className="mx-3 mb-2 rounded-xl px-3 py-2.5"
+      style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+      {/* Row 1: email + actions */}
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-2 h-2 rounded-full shrink-0 ${dot.pulse ? 'animate-pulse' : ''}`}
+            style={{ background: dot.color }} />
+          <p className="text-xs truncate" style={{ color: colors.textSub }}>{userEmail}</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          <button onClick={syncNow} title="Sync now" disabled={syncStatus === 'syncing'}
+            className="opacity-50 hover:opacity-100 transition-opacity">
+            <RefreshCw size={11} style={{ color: colors.textSub }}
+              className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={logout} title="Sign out"
+            className="opacity-50 hover:opacity-100 transition-opacity">
+            <LogOut size={11} style={{ color: colors.textSub }} />
+          </button>
+        </div>
+      </div>
+      {/* Row 2: status */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs" style={{ color: dot.color }}>{dot.label}</span>
+        {lastSynced && <span className="text-xs" style={{ color: colors.textFaint }}>{fmt(lastSynced)}</span>}
+      </div>
+      {syncStatus === 'error' && syncError && (
+        <p className="text-xs mt-1" style={{ color: '#f87171' }}>{syncError}</p>
+      )}
+    </div>
+  );
+}
+
+// ── Loading overlay while trades are being fetched ─────────────────────────
+function TradesLoadingBanner() {
+  const { colors } = useTheme();
+  const { tradesLoading } = useTradesContext();
+  if (!tradesLoading) return null;
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 text-xs"
+      style={{ background: 'rgba(245,158,11,0.08)', borderBottom: `1px solid rgba(245,158,11,0.15)`, color: '#f59e0b' }}>
+      <Loader2 size={12} className="animate-spin" />
+      Loading your trades from cloud…
+    </div>
+  );
+}
+
 export function Layout() {
   const location = useLocation();
   const { trades } = useTradesContext();
@@ -72,12 +149,8 @@ export function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: colors.appBg, color: colors.text }}>
-      {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -112,7 +185,7 @@ export function Layout() {
                 style={{
                   background: active ? 'rgba(245,158,11,0.12)' : 'transparent',
                   color: active ? '#f59e0b' : colors.textSub,
-                  border: active ? '1px solid rgba(245,158,11,0.2)' : `1px solid transparent`,
+                  border: active ? '1px solid rgba(245,158,11,0.2)' : '1px solid transparent',
                 }}
               >
                 <Icon size={16} />
@@ -136,7 +209,10 @@ export function Layout() {
         {/* Edge card */}
         <EdgeCard trades={trades} />
 
-        {/* Theme toggle — bottom of sidebar */}
+        {/* Cloud sync status */}
+        <CloudSyncPanel />
+
+        {/* Theme toggle */}
         <div className="px-3 pb-4">
           <button
             onClick={toggleTheme}
@@ -151,7 +227,6 @@ export function Layout() {
               {isDayMode ? <Sun size={14} /> : <Moon size={14} />}
               <span>{isDayMode ? 'Day Mode' : 'Night Mode'}</span>
             </div>
-            {/* pill indicator */}
             <div
               className="flex items-center rounded-full p-0.5 transition-all"
               style={{
@@ -160,20 +235,13 @@ export function Layout() {
                 justifyContent: isDayMode ? 'flex-end' : 'flex-start',
               }}
             >
-              <div
-                className="rounded-full"
-                style={{
-                  width: 14, height: 14,
-                  background: isDayMode ? '#f59e0b' : '#60a5fa',
-                  transition: 'all 0.2s',
-                }}
-              />
+              <div className="rounded-full" style={{ width: 14, height: 14, background: isDayMode ? '#f59e0b' : '#60a5fa', transition: 'all 0.2s' }} />
             </div>
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
         <div className="flex items-center gap-3 px-4 py-3 lg:hidden" style={{ borderBottom: `1px solid ${colors.border}`, background: colors.sidebar }}>
@@ -189,19 +257,16 @@ export function Layout() {
               <Flame size={10} /> Day {dayNumber}/30
             </span>
           )}
-          {/* Mobile theme toggle */}
-          <button
-            onClick={toggleTheme}
+          <button onClick={toggleTheme}
             className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-            style={{
-              background: isDayMode ? 'rgba(251,191,36,0.1)' : 'rgba(96,165,250,0.08)',
-              border: `1px solid ${isDayMode ? 'rgba(251,191,36,0.2)' : 'rgba(96,165,250,0.15)'}`,
-            }}
-            title={isDayMode ? 'Switch to Night' : 'Switch to Day'}
-          >
+            style={{ background: isDayMode ? 'rgba(251,191,36,0.1)' : 'rgba(96,165,250,0.08)', border: `1px solid ${isDayMode ? 'rgba(251,191,36,0.2)' : 'rgba(96,165,250,0.15)'}` }}
+            title={isDayMode ? 'Switch to Night' : 'Switch to Day'}>
             {isDayMode ? <Sun size={14} style={{ color: '#f59e0b' }} /> : <Moon size={14} style={{ color: '#93c5fd' }} />}
           </button>
         </div>
+
+        {/* Trades loading banner */}
+        <TradesLoadingBanner />
 
         <main className="flex-1 overflow-y-auto" style={{ background: colors.appBg }}>
           <Outlet />
