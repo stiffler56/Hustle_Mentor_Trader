@@ -19,6 +19,10 @@ import {
   LogOut,
   Github,
   Loader2,
+  LineChart,
+  PlayCircle,
+  Brain,
+  Link2,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { useAuthContext } from '../data/AuthContext';
@@ -30,6 +34,10 @@ const navItems = [
   { to: '/scorer', label: 'Trade Scorer', icon: Zap },
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/advanced-analytics', label: 'Advanced Analytics', icon: LineChart },
+  { to: '/replay', label: 'Trade Replay', icon: PlayCircle },
+  { to: '/psychology', label: 'Psychology Journal', icon: Brain },
+  { to: '/broker', label: 'Broker Integration', icon: Link2 },
   { to: '/challenge', label: '30-Day Challenge', icon: Flame },
   { to: '/notion', label: 'Notion Import', icon: Database },
   { to: '/github', label: 'GitHub Sync', icon: Github },
