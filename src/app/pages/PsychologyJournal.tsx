@@ -10,7 +10,7 @@ import { useTheme } from '../data/ThemeContext';
 import {
   Brain, AlertTriangle, CheckCircle2, TrendingUp, Plus, Calendar, BarChart3, Lightbulb,
 } from 'lucide-react';
-import type { Trade, EmotionalState, PsychologicalFactor } from '../data/types-enhanced';
+import type { EmotionalState, PsychologicalFactor } from '../data/types';
 import {
   analyzeEmotionalPatterns,
   detectPsychologicalBiases,
@@ -22,7 +22,7 @@ import {
 } from '../utils/psychologyJournal';
 
 export default function PsychologyJournal() {
-  const { trades } = useTradesContext();
+  const { trades, updateTrade } = useTradesContext();
   const { colors } = useTheme();
 
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
@@ -61,7 +61,6 @@ export default function PsychologyJournal() {
   const handleSaveEntry = () => {
     if (!selectedTrade) return;
 
-    // Create entry (in production, this would be saved to database)
     const entry = createPsychologyEntry(selectedTrade.id, {
       date: selectedTrade.date,
       preTradeEmotionalState: preEmotionalState,
@@ -79,7 +78,25 @@ export default function PsychologyJournal() {
       affirmation,
     });
 
-    console.log('Psychology entry created:', entry);
+    updateTrade(selectedTrade.id, {
+      psychologicalMetrics: {
+        preTradeEmotionalState: entry.preTradeEmotionalState,
+        postTradeEmotionalState: entry.postTradeEmotionalState,
+        preTradeConfidence: entry.preTradeConfidence,
+        postTradeEmotionalResponse: entry.postTradeEmotionalResponse,
+        psychologicalFactorsPresent: entry.psychologicalFactorsPresent,
+        wasRevengeTrading: entry.wasRevengeTrading,
+        wasChasing: entry.wasChasing,
+        wasOverconfident: entry.wasOverconfident,
+        stressLevel: entry.stressLevel,
+        sleepQuality: entry.sleepQuality,
+        externalFactors: entry.externalFactors,
+        lessonsLearned: entry.lessonsLearned,
+        affirmation: entry.affirmation,
+        updatedAt: entry.createdAt,
+      },
+    });
+
     setShowForm(false);
     // Reset form
     setPreEmotionalState('neutral');
@@ -367,7 +384,7 @@ export default function PsychologyJournal() {
                 <option value="">Choose a trade...</option>
                 {closedTrades.map((trade) => (
                   <option key={trade.id} value={trade.id}>
-                    {trade.pair} - {trade.date} ({trade.result})
+                    {trade.pair} - {trade.date} ({trade.result}){trade.psychologicalMetrics ? ' ✓ Reviewed' : ''}
                   </option>
                 ))}
               </select>
@@ -375,6 +392,12 @@ export default function PsychologyJournal() {
 
             {selectedTrade && (
               <>
+                {selectedTrade.psychologicalMetrics && (
+                  <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#10b98115', border: '1px solid #10b98155', borderRadius: '0.5rem', color: colors.text }}>
+                    This trade already has psychology data. Saving will update the existing review.
+                  </div>
+                )}
+
                 {/* Pre-Trade Emotional State */}
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>

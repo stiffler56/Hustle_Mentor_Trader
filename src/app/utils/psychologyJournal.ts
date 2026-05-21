@@ -4,7 +4,7 @@
  * Tracks emotional state, psychological patterns, and provides AI-powered insights
  */
 
-import type { Trade, EmotionalState, PsychologicalFactor } from '../data/types-enhanced';
+import type { Trade, EmotionalState, PsychologicalFactor } from '../data/types';
 
 // ─── Psychology Journal Entry ──────────────────────────────────────────────
 export interface PsychologyEntry {
@@ -50,10 +50,11 @@ export const PSYCHOLOGICAL_FACTORS: Record<PsychologicalFactor, { description: s
 // ─── Create Psychology Entry ──────────────────────────────────────────────
 export function createPsychologyEntry(
   tradeId: string,
-  data: Omit<PsychologyEntry, 'id' | 'createdAt'>
+  data: Omit<PsychologyEntry, 'id' | 'createdAt' | 'tradeId'>
 ): PsychologyEntry {
   return {
     ...data,
+    tradeId,
     id: `psych-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     createdAt: new Date().toISOString(),
   };
@@ -164,9 +165,11 @@ export function generatePsychologyInsights(trades: Trade[]): PsychologyInsight[]
   const biases = detectPsychologicalBiases(trades);
 
   // Find best emotional state
-  const bestPattern = patterns.reduce((best, current) =>
-    current.averageWinRate > best.averageWinRate ? current : best
-  );
+  const bestPattern = patterns.length > 0
+    ? patterns.reduce((best, current) =>
+      current.averageWinRate > best.averageWinRate ? current : best
+    )
+    : null;
 
   if (bestPattern) {
     insights.push({
@@ -224,6 +227,19 @@ export function generatePsychologyInsights(trades: Trade[]): PsychologyInsight[]
         'Wait for the next setup instead of chasing current moves',
         'Set entry alerts and wait for price to come to you',
         'Review your trading plan before each session',
+      ],
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      title: 'Start Building Your Psychology Dataset',
+      description: 'No major psychological patterns are visible yet. Add psychology notes to each closed trade so HustleDashboard can identify your best and worst mental states.',
+      severity: 'info',
+      actionItems: [
+        'Add a psychology review to your next 10 closed trades',
+        'Track revenge trading, chasing, and overconfidence honestly',
+        'Review this page weekly to detect repeat patterns',
       ],
     });
   }
