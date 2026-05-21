@@ -37,6 +37,7 @@ const navItems = [
   { to: '/advanced-analytics', label: 'Advanced Analytics', icon: LineChart },
   { to: '/replay', label: 'Trade Replay', icon: PlayCircle },
   { to: '/psychology', label: 'Psychology Journal', icon: Brain },
+  { to: '/ai-mentor', label: 'AI Mentor', icon: Zap },
   { to: '/broker', label: 'Broker Integration', icon: Link2 },
   { to: '/challenge', label: '30-Day Challenge', icon: Flame },
   { to: '/notion', label: 'Notion Import', icon: Database },

@@ -6,6 +6,37 @@ export type Decision = 'TAKE' | 'WAIT' | 'PASS';
 export type TradeResult = 'WIN' | 'LOSS' | 'BE';
 export type TradeStatus = 'OPEN' | 'CLOSED';
 
+export type EmotionalState = 'confident' | 'anxious' | 'neutral' | 'revenge-trading' | 'overconfident' | 'fearful';
+export type PsychologicalFactor = 'discipline' | 'patience' | 'greed' | 'fear' | 'overconfidence' | 'revenge';
+
+export interface PsychologicalMetrics {
+  preTradeEmotionalState: EmotionalState;
+  postTradeEmotionalState: EmotionalState;
+  preTradeConfidence: number;
+  postTradeEmotionalResponse: string;
+  psychologicalFactorsPresent: PsychologicalFactor[];
+  wasRevengeTrading: boolean;
+  wasChasing: boolean;
+  wasOverconfident: boolean;
+  stressLevel?: number;
+  sleepQuality?: number;
+  externalFactors?: string;
+  lessonsLearned?: string;
+  affirmation?: string;
+  updatedAt?: string;
+}
+
+export interface AIAnalysis {
+  mentorSummary: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestedImprovements: string[];
+  riskWarnings: string[];
+  naturalLanguageFindings: string[];
+  confidence: number;
+  lastAnalyzedAt: string;
+}
+
 export interface Trade {
   id: string;
   date: string;
@@ -35,6 +66,10 @@ export interface Trade {
   screenshotAfter2?: string;  // base64
   reviewVideoUrl?: string;    // YouTube / Loom / TradingView replay URL
   isChallengedTrade?: boolean;
+
+  // Elevation features: stored in the same trade object so cloud sync and GitHub sync preserve the data.
+  psychologicalMetrics?: PsychologicalMetrics;
+  aiAnalysis?: AIAnalysis;
 }
 
 export interface ScoreBreakdown {
