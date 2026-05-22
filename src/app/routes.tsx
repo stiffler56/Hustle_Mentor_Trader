@@ -13,6 +13,7 @@ import Challenge from './pages/Challenge';
 import NotionSync from './pages/NotionSync';
 import DataManager from './pages/DataManager';
 import GitHubSyncPage from './pages/GitHubSync';
+import PatternRecognition from './pages/PatternRecognition';
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: 'notion', Component: NotionSync },
       { path: 'data', Component: DataManager },
       { path: 'github', Component: GitHubSyncPage },
+      { path: 'patterns', Component: PatternRecognition },
     ],
   },
 ]);

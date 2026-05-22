@@ -43,6 +43,7 @@ const navItems = [
   { to: '/notion', label: 'Notion Import', icon: Database },
   { to: '/github', label: 'GitHub Sync', icon: Github },
   { to: '/data', label: 'Data Manager', icon: HardDrive },
+  { to: '/patterns', label: 'Pattern Recognition', icon: TrendingUp },
 ];
 
 function EdgeCard({ trades }: { trades: ReturnType<typeof useTradesContext>['trades'] }) {
