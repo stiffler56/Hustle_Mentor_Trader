@@ -87,10 +87,15 @@ export default function Dashboard() {
   const { isDayMode, toggleTheme, colors } = useTheme();
 
   const closed = trades.filter(t => t.status === 'CLOSED' && t.result);
+  const open = trades.filter(t => t.status === 'OPEN');
   const totalPnL = closed.reduce((acc, t) => acc + (t.pnl ?? 0), 0);
   const wins = closed.filter(t => t.result === 'WIN').length;
   const winRate = closed.length ? Math.round((wins / closed.length) * 100) : 0;
-  const avgScore = closed.length ? Math.round(closed.reduce((a, t) => a + t.score, 0) / closed.length) : 0;
+  const avgScore = closed.length > 0 
+    ? Math.round(closed.reduce((a, t) => a + t.score, 0) / closed.length)
+    : open.length > 0
+    ? Math.round(open.reduce((a, t) => a + t.score, 0) / open.length)
+    : 0;
 
   // Cumulative P&L chart
   const sorted = [...closed].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -158,27 +163,27 @@ export default function Dashboard() {
         <StatCard
           label="Total P&L"
           value={`${totalPnL >= 0 ? '+' : ''}$${totalPnL.toLocaleString()}`}
-          sub={`${closed.length} closed trades`}
+          sub={`${closed.length} closed trades${open.length ? ` (+${open.length} pending)` : ''}`}
           positive={totalPnL >= 0}
           icon={TrendingUp}
         />
         <StatCard
           label="Win Rate"
-          value={`${winRate}%`}
-          sub={`${wins}W / ${closed.length - wins}L`}
+          value={closed.length ? `${winRate}%` : '—'}
+          sub={closed.length ? `${wins}W / ${closed.length - wins}L` : 'No closed trades yet'}
           positive={winRate >= 50}
           icon={Target}
         />
         <StatCard
           label="Total Trades"
           value={`${trades.length}`}
-          sub={`${trades.filter(t => t.status === 'OPEN').length} open`}
+          sub={`${open.length} open${closed.length ? ` / ${closed.length} closed` : ''}`}
           icon={Activity}
         />
         <StatCard
           label="Avg Score"
-          value={`${avgScore}`}
-          sub={`/ 100 quality`}
+          value={avgScore ? `${avgScore}` : '—'}
+          sub={avgScore ? `/ 100 ${closed.length ? 'closed' : 'pending'}` : 'No trades yet'}
           positive={avgScore >= 70}
           icon={TrendingDown}
         />
@@ -209,8 +214,11 @@ export default function Dashboard() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[180px] flex items-center justify-center" style={{ color: colors.textMuted }}>
-              <p className="text-sm">Log more trades to see your curve</p>
+            <div className="h-[180px] flex items-center justify-center flex-col gap-2" style={{ color: colors.textMuted }}>
+              <p className="text-sm">Log trade results to see your curve</p>
+              {open.length > 0 && (
+                <p className="text-xs" style={{ color: colors.textFaint }}>You have {open.length} {open.length === 1 ? 'open trade' : 'open trades'} — visit Journal to log results</p>
+              )}
             </div>
           )}
         </div>
@@ -251,29 +259,45 @@ export default function Dashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                {['Date', 'Pair', 'Session', 'Score', 'Decision', 'Result', 'P&L'].map(h => (
+                {['Date', 'Pair', 'Session', 'Score', 'Decision', 'Status', 'Result', 'P&L'].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-xs uppercase tracking-wider" style={{ color: colors.textMuted }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {recentTrades.map((t: Trade) => (
-                <tr key={t.id} style={{ borderBottom: `1px solid ${colors.rowBorder}` }} className="hover:bg-black/[0.02] transition-colors">
-                  <td className="px-4 py-3 text-xs" style={{ color: colors.textSub }}>{t.date}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: colors.text }}>{t.pair}</td>
-                  <td className="px-4 py-3 text-xs" style={{ color: colors.textSub }}>{t.session}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm" style={{ color: t.score >= 75 ? '#10b981' : t.score >= 55 ? '#eab308' : '#f87171' }}>
-                      {t.score}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3"><DecisionBadge decision={t.decision} /></td>
-                  <td className="px-4 py-3"><ResultBadge result={t.result} /></td>
-                  <td className="px-4 py-3 text-sm" style={{ color: (t.pnl ?? 0) >= 0 ? '#10b981' : '#f87171' }}>
-                    {t.pnl !== undefined ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl}` : '—'}
+              {recentTrades.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center" style={{ color: colors.textMuted }}>
+                    <p className="text-sm">No trades logged yet. Create your first trade using the "Score a Trade" button.</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentTrades.map((t: Trade) => (
+                  <tr key={t.id} style={{ borderBottom: `1px solid ${colors.rowBorder}` }} className="hover:bg-black/[0.02] transition-colors">
+                    <td className="px-4 py-3 text-xs" style={{ color: colors.textSub }}>{t.date}</td>
+                    <td className="px-4 py-3 text-sm" style={{ color: colors.text }}>{t.pair}</td>
+                    <td className="px-4 py-3 text-xs" style={{ color: colors.textSub }}>{t.session}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm" style={{ color: t.score >= 75 ? '#10b981' : t.score >= 55 ? '#eab308' : '#f87171' }}>
+                        {t.score}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><DecisionBadge decision={t.decision} /></td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ 
+                        background: t.status === 'CLOSED' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', 
+                        color: t.status === 'CLOSED' ? '#10b981' : '#f59e0b'
+                      }}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><ResultBadge result={t.result} /></td>
+                    <td className="px-4 py-3 text-sm" style={{ color: (t.pnl ?? 0) >= 0 ? '#10b981' : '#f87171' }}>
+                      {t.pnl !== undefined ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl}` : '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
