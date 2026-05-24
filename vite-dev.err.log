@@ -1,0 +1,137 @@
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/AdvancedAnalytics.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/AdvancedAnalytics.tsx[39m:13:33
+[33m  30 |  } from "recharts";
+  31 |  import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+  32 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  33 |  import { useTheme } from "../data/ThemeContext";
+  34 |  import {[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42499:41)
+      at TransformPluginContext.error (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42496:16)
+      at normalizeUrl (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40475:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40594:37
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40521:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42294:18)
+      at async loadAndTransform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:35735:27)
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/AdvancedAnalytics.tsx". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/AdvancedAnalytics.tsx[39m:13:33
+[33m  30 |  } from "recharts";
+  31 |  import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+  32 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  33 |  import { useTheme } from "../data/ThemeContext";
+  34 |  import {[39m
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/Analytics.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/Analytics.tsx[39m:7:33
+[33m  26 |  } from "recharts";
+  27 |  import { Brain, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+  28 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  29 |  import { useTheme } from "../data/ThemeContext";
+  30 |  function winRatePct(trades) {[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42499:41)
+      at TransformPluginContext.error (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42496:16)
+      at normalizeUrl (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40475:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40594:37
+      at async Promise.all (index 5)
+      at async TransformPluginContext.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40521:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42294:18)
+      at async loadAndTransform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:35735:27)
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/Analytics.tsx". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/Analytics.tsx[39m:7:33
+[33m  26 |  } from "recharts";
+  27 |  import { Brain, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+  28 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  29 |  import { useTheme } from "../data/ThemeContext";
+  30 |  function winRatePct(trades) {[39m
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/Analytics.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/Analytics.tsx[39m:7:33
+[33m  26 |  } from "recharts";
+  27 |  import { Brain, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+  28 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  29 |  import { useTheme } from "../data/ThemeContext";
+  30 |  function winRatePct(trades) {[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42499:41)
+      at TransformPluginContext.error (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42496:16)
+      at normalizeUrl (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40475:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40594:37
+      at async Promise.all (index 5)
+      at async TransformPluginContext.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40521:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42294:18)
+      at async loadAndTransform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:35735:27)
+      at async viteTransformMiddleware (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:37250:24)
+[2m3:35:55 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/AdvancedAnalytics.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/AdvancedAnalytics.tsx[39m:13:33
+[33m  30 |  } from "recharts";
+  31 |  import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+  32 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  33 |  import { useTheme } from "../data/ThemeContext";
+  34 |  import {[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42499:41)
+      at TransformPluginContext.error (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42496:16)
+      at normalizeUrl (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40475:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40594:37
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:40521:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:42294:18)
+      at async loadAndTransform (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:35735:27)
+      at async viteTransformMiddleware (file:///C:/Users/csame/Videos/the%20project%2001/HustleDashboard/node_modules/vite/dist/node/chunks/dep-DBxKXgDP.js:37250:24)
+[2m3:36:15 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "../data/TradesContext" from "src/app/pages/analytics/AdvancedAnalytics.tsx". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/pages/analytics/AdvancedAnalytics.tsx[39m:13:33
+[33m  30 |  } from "recharts";
+  31 |  import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+  32 |  import { useTradesContext } from "../data/TradesContext";
+     |                                    ^
+  33 |  import { useTheme } from "../data/ThemeContext";
+  34 |  import {[39m
+[2m4:31:23 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/csame/Videos/the project 01/HustleDashboard/src/app/utils/mentorAnalysis.ts:176:24: ERROR: Syntax error "\x0A"
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/utils/mentorAnalysis.ts[39m:176:24
+[33m  
+  [33mSyntax error "\x0A"[33m
+  174|        tradeId: trade.id,
+  175|        date: trade.date,
+  176|        pair: trade.pair,\
+     |                          ^
+  177|        result: trade.result ?? trade.status,
+  178|        pnl,
+  [39m
+[2m4:31:23 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/csame/Videos/the project 01/HustleDashboard/src/app/utils/mentorAnalysis.ts:176:24: ERROR: Syntax error "\x0A"[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/csame/Videos/the project 01/HustleDashboard/src/app/utils/mentorAnalysis.ts[39m:176:24
+[33m  
+  [33mSyntax error "\x0A"[33m
+  174|        tradeId: trade.id,
+  175|        date: trade.date,
+  176|        pair: trade.pair,\
+     |                          ^
+  177|        result: trade.result ?? trade.status,
+  178|        pnl,
+  [39m
+      at failureErrorWithLog (C:\Users\csame\Videos\the project 01\HustleDashboard\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\csame\Videos\the project 01\HustleDashboard\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\csame\Videos\the project 01\HustleDashboard\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\csame\Videos\the project 01\HustleDashboard\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\csame\Videos\the project 01\HustleDashboard\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:518:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
