@@ -4,6 +4,7 @@
  */
 
 import type { BrokerAccount, BrokerTrade, Trade, BrokerSyncResponse } from '../data/types-enhanced';
+import { MetaApi, MetatraderAccount } from 'metaapi.cloud-sdk';
 
 // ─── Broker API Interfaces ─────────────────────────────────────────────────
 interface IBrokerConnector {
@@ -62,14 +63,26 @@ class InteractiveBrokersConnector implements IBrokerConnector {
 
 // ─── MetaTrader 5 Connector ────────────────────────────────────────────────
 class MetaTrader5Connector implements IBrokerConnector {
+  private metaApi: MetaApi | null = null;
+  private account: MetatraderAccount | null = null;
   private accountId: string = '';
 
   async authenticate(credentials: Record<string, string>): Promise<boolean> {
     try {
       this.accountId = credentials.accountId;
       console.log('[MT5] Authenticating with MetaTrader 5...');
-      // In production, connect to MT5 terminal via WebSocket or REST API
-      return true;
+      this.metaApi = new MetaApi(credentials.apiKey);
+      const accounts = await this.metaApi.get  MetatraderAccounts();
+      this.account = accounts.find(acc => acc.login === credentials.accountId && acc.type === 'mt5');
+
+      if (this.account) {
+        await this.account.waitConnected();
+        console.log('[MT5] Connected to MetaApi account:', this.account.name);
+        return true;
+      } else {
+        console.error('[MT5] MetaApi account not found or not MT5:', credentials.accountId);
+        return false;
+      }
     } catch (error) {
       console.error('[MT5] Authentication failed:', error);
       return false;
@@ -77,29 +90,55 @@ class MetaTrader5Connector implements IBrokerConnector {
   }
 
   async getAccount(): Promise<BrokerAccount> {
+    if (!this.account) throw new Error('MetaTrader 5 account not connected.');
+
+    const accountInfo = await this.account.getAccountInformation();
+    const metrics = await this.account.getDailyMetrics();
+
     return {
-      id: this.accountId,
+      id: this.account.id,
       brokerType: 'metatrader',
-      accountNumber: this.accountId,
-      accountName: 'MetaTrader 5 Account',
-      currency: 'USD',
-      balance: 0,
-      equity: 0,
-      usedMargin: 0,
-      freeMargin: 0,
-      marginLevel: 0,
+      accountNumber: this.account.login,
+      accountName: this.account.name,
+      currency: accountInfo.currency,
+      balance: accountInfo.balance,
+      equity: accountInfo.equity,
+      usedMargin: accountInfo.margin,
+      freeMargin: accountInfo.freeMargin,
+      marginLevel: accountInfo.marginLevel,
       lastSyncedAt: new Date().toISOString(),
-      isActive: true,
+      isActive: this.account.connectionStatus === 'connected',
     };
   }
 
   async getTrades(startDate?: string, endDate?: string): Promise<BrokerTrade[]> {
-    console.log('[MT5] Fetching trades from', startDate, 'to', endDate);
-    return [];
+    if (!this.account) throw new Error('MetaTrader 5 account not connected.');
+
+    const historyOrders = await this.account.getHistoryOrdersByTime(new Date(startDate || 0).toISOString(), new Date(endDate || Date.now()).toISOString());
+
+    return historyOrders.map(order => ({
+      id: order.id,
+      brokerAccountId: this.account!.id,
+      symbol: order.symbol,
+      type: order.type,
+      volume: order.volume,
+      openTime: new Date(order.openTime).toISOString(),
+      closeTime: order.closeTime ? new Date(order.closeTime).toISOString() : undefined,
+      openPrice: order.openPrice,
+      closePrice: order.closePrice,
+      profit: order.profit,
+      commission: order.commission,
+      swap: order.swap,
+      comment: order.comment,
+      status: order.state,
+    }));
   }
 
   async disconnect(): Promise<void> {
-    console.log('[MT5] Disconnecting...');
+    if (this.account) {
+      await this.account.disconnect();
+      console.log('[MT5] Disconnecting from MetaApi account:', this.account.name);
+    }
   }
 }
 
