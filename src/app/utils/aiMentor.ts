@@ -1,4 +1,5 @@
 import type { AIAnalysis, Trade } from '../data/types';
+import Groq from 'groq-sdk';
 
 type Severity = 'success' | 'warning' | 'danger' | 'info';
 
@@ -249,35 +250,77 @@ export function analyzeTradeWithMentor(trade: Trade, historicalTrades: Trade[]):
   };
 }
 
-export function answerTradingQuestion(question: string, trades: Trade[]): string {
-  const q = question.toLowerCase();
-  const closed = closedTrades(trades);
-  const report = generateMentorReport(trades);
+export async function answerTradingQuestion(question: string, trades: Trade[], apiKey?: string): Promise<string> {
+  if (!apiKey) {
+    const q = question.toLowerCase();
+    const closed = closedTrades(trades);
+    const report = generateMentorReport(trades);
 
-  if (q.includes('best') && q.includes('session')) {
-    const best = findBestGroup(groupBy(closed, (trade) => trade.session));
-    return best ? `Your best session is ${best.key}: ${best.winRate}% win rate over ${best.count} trades with $${best.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your best session.';
+    if (q.includes('best') && q.includes('session')) {
+      const best = findBestGroup(groupBy(closed, (trade) => trade.session));
+      return best ? `Your best session is ${best.key}: ${best.winRate}% win rate over ${best.count} trades with $${best.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your best session.';
+    }
+
+    if (q.includes('worst') && q.includes('session')) {
+      const worst = findWorstGroup(groupBy(closed, (trade) => trade.session));
+      return worst ? `Your weakest session is ${worst.key}: ${worst.winRate}% win rate over ${worst.count} trades with $${worst.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your weakest session.';
+    }
+
+    if (q.includes('strategy')) {
+      const best = findBestGroup(groupBy(closed, (trade) => trade.strategy));
+      return best ? `Your strongest strategy is ${best.key}: ${best.winRate}% win rate over ${best.count} trades. Keep using strict rules around that setup.` : 'I need more closed trades to compare strategies.';
+    }
+
+    if (q.includes('risk')) {
+      const highRisk = closed.filter((trade) => trade.risk > 2);
+      return highRisk.length ? `You have ${highRisk.length} high-risk trades above 2%. Reduce risk to 1–1.5% until consistency improves.` : 'Your risk profile looks controlled; I do not see closed trades above 2% risk.';
+    }
+
+    if (q.includes('psychology') || q.includes('emotion') || q.includes('revenge')) {
+      const reviewed = closed.filter((trade) => trade.psychologicalMetrics).length;
+      return reviewed ? `I found psychology data on ${reviewed} trades. Main recommendation: ${report.nextActions[0]}` : 'No psychology-reviewed trades yet. Add entries in Psychology Journal so I can detect emotional patterns.';
+    }
+
+    return report.summary;
   }
 
-  if (q.includes('worst') && q.includes('session')) {
-    const worst = findWorstGroup(groupBy(closed, (trade) => trade.session));
-    return worst ? `Your weakest session is ${worst.key}: ${worst.winRate}% win rate over ${worst.count} trades with $${worst.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your weakest session.';
-  }
+  try {
+    const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+    const report = generateMentorReport(trades);
+    const tradeSummary = trades.slice(-10).map(t => ({
+      pair: t.pair,
+      result: t.result,
+      pnl: t.pnl,
+      strategy: t.strategy,
+      session: t.session,
+      risk: t.risk,
+      focus: t.mentalFocus,
+      psychology: t.psychologicalMetrics
+    }));
 
-  if (q.includes('strategy')) {
-    const best = findBestGroup(groupBy(closed, (trade) => trade.strategy));
-    return best ? `Your strongest strategy is ${best.key}: ${best.winRate}% win rate over ${best.count} trades. Keep using strict rules around that setup.` : 'I need more closed trades to compare strategies.';
-  }
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert trading mentor. Analyze the user's trading data and answer their question.
+          Current Performance Summary: ${report.summary}
+          Strengths: ${report.strengths.join(', ')}
+          Weaknesses: ${report.weaknesses.join(', ')}
+          Recent Trades (last 10): ${JSON.stringify(tradeSummary)}
+          
+          Provide professional, actionable, and encouraging advice based on the data.`
+        },
+        {
+          role: 'user',
+          content: question
+        }
+      ],
+      model: 'llama-3.3-70b-versatile',
+    });
 
-  if (q.includes('risk')) {
-    const highRisk = closed.filter((trade) => trade.risk > 2);
-    return highRisk.length ? `You have ${highRisk.length} high-risk trades above 2%. Reduce risk to 1–1.5% until consistency improves.` : 'Your risk profile looks controlled; I do not see closed trades above 2% risk.';
+    return completion.choices[0]?.message?.content || 'I could not generate a response at this time.';
+  } catch (error: any) {
+    console.error('Groq API Error:', error);
+    return `Error connecting to AI Mentor: ${error.message}. Falling back to rule-based response: ${generateMentorReport(trades).summary}`;
   }
-
-  if (q.includes('psychology') || q.includes('emotion') || q.includes('revenge')) {
-    const reviewed = closed.filter((trade) => trade.psychologicalMetrics).length;
-    return reviewed ? `I found psychology data on ${reviewed} trades. Main recommendation: ${report.nextActions[0]}` : 'No psychology-reviewed trades yet. Add entries in Psychology Journal so I can detect emotional patterns.';
-  }
-
-  return report.summary;
 }

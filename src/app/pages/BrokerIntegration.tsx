@@ -1,7 +1,8 @@
 /**
- * Broker Integration Page
+ * Broker Integration Page - Enhanced Version
  * Issue #1: Broker Integration for Automated Data Import
  * Allows users to connect to brokers and automatically import trade data
+ * Enhanced with MetaApi integration for MetaTrader 5
  */
 
 import { useState, useRef } from 'react';
@@ -10,7 +11,7 @@ import { useTheme } from '../data/ThemeContext';
 import { brokerService } from '../services/brokerService';
 import type { BrokerType, BrokerAccount } from '../data/types-enhanced';
 import {
-  Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Loader, Link2, Unlink2,
+  Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Loader, Link2, Unlink2, HelpCircle, ExternalLink,
 } from 'lucide-react';
 
 type BrokerConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -20,6 +21,14 @@ interface ConnectedBroker {
   status: BrokerConnectionStatus;
   lastSyncedAt: string;
   tradesImported: number;
+}
+
+interface BrokerInfo {
+  name: string;
+  icon: string;
+  status: 'integrated' | 'coming-soon' | 'planned';
+  setupLink?: string;
+  description: string;
 }
 
 export default function BrokerIntegration() {
@@ -32,6 +41,7 @@ export default function BrokerIntegration() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   const apiKeyRef = useRef<HTMLInputElement>(null);
   const accountIdRef = useRef<HTMLInputElement>(null);
@@ -121,6 +131,34 @@ export default function BrokerIntegration() {
       showToast(error.message || 'Disconnect failed', false);
     }
   };
+
+  const brokerInfoList: BrokerInfo[] = [
+    {
+      name: 'Interactive Brokers',
+      icon: '🏦',
+      status: 'coming-soon',
+      description: 'Connect to Interactive Brokers for automated trade import.',
+    },
+    {
+      name: 'MetaTrader 5',
+      icon: '📊',
+      status: 'integrated',
+      setupLink: 'https://metaapi.cloud/',
+      description: 'Connect to MetaTrader 5 via MetaApi for real-time trade synchronization.',
+    },
+    {
+      name: 'cTrader',
+      icon: '💱',
+      status: 'coming-soon',
+      description: 'Connect to cTrader for automated trade import.',
+    },
+    {
+      name: 'TradingView',
+      icon: '📈',
+      status: 'planned',
+      description: 'TradingView integration is planned for future releases.',
+    },
+  ];
 
   return (
     <div style={{ background: colors.background, color: colors.text, minHeight: '100vh', padding: '2rem' }}>
@@ -281,12 +319,7 @@ export default function BrokerIntegration() {
         >
           <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>📋 Supported Brokers</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-            {[
-              { name: 'Interactive Brokers', icon: '🏦', status: 'Coming Soon' },
-              { name: 'MetaTrader 5', icon: '📊', status: 'Coming Soon' },
-              { name: 'cTrader', icon: '💱', status: 'Coming Soon' },
-              { name: 'TradingView', icon: '📈', status: 'Planned' },
-            ].map((broker) => (
+            {brokerInfoList.map((broker) => (
               <div
                 key={broker.name}
                 style={{
@@ -299,7 +332,33 @@ export default function BrokerIntegration() {
               >
                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{broker.icon}</div>
                 <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{broker.name}</p>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted }}>{broker.status}</p>
+                <p style={{ fontSize: '0.75rem', color: colors.textMuted, marginBottom: '0.5rem' }}>
+                  {broker.description}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '0.25rem 0.5rem',
+                      background: broker.status === 'integrated' ? '#10b981' : '#f59e0b',
+                      color: 'white',
+                      borderRadius: '0.25rem',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {broker.status === 'coming-soon' ? 'Coming Soon' : broker.status}
+                  </span>
+                  {broker.setupLink && (
+                    <a
+                      href={broker.setupLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#3b82f6', cursor: 'pointer' }}
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -328,6 +387,8 @@ export default function BrokerIntegration() {
               padding: '2rem',
               maxWidth: '400px',
               width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -354,6 +415,55 @@ export default function BrokerIntegration() {
               </select>
             </div>
 
+            {selectedBroker === 'metatrader' && (
+              <div
+                style={{
+                  padding: '1rem',
+                  background: '#fef3c7',
+                  border: '1px solid #fcd34d',
+                  borderRadius: '0.375rem',
+                  marginBottom: '1.5rem',
+                  fontSize: '0.875rem',
+                  color: '#78350f',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <HelpCircle size={16} />
+                  <strong>MetaTrader 5 Setup</strong>
+                </div>
+                <p style={{ marginBottom: '0.5rem' }}>
+                  You need a MetaApi account to connect MT5. Visit{' '}
+                  <a href="https://metaapi.cloud/" target="_blank" rel="noopener noreferrer" style={{ color: '#1e40af', textDecoration: 'underline' }}>
+                    metaapi.cloud
+                  </a>
+                  {' '}to set up your account.
+                </p>
+                <button
+                  onClick={() => setShowSetupGuide(!showSetupGuide)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#1e40af',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  {showSetupGuide ? 'Hide' : 'Show'} Setup Instructions
+                </button>
+                {showSetupGuide && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', lineHeight: '1.5' }}>
+                    <ol style={{ paddingLeft: '1.25rem' }}>
+                      <li>Create a MetaApi account at metaapi.cloud</li>
+                      <li>Connect your MT5 account to MetaApi</li>
+                      <li>Generate an API key in your MetaApi dashboard</li>
+                      <li>Enter your API key and MT5 login below</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>API Key</label>
               <input
@@ -376,7 +486,7 @@ export default function BrokerIntegration() {
               <input
                 ref={accountIdRef}
                 type="text"
-                placeholder="Enter your account ID"
+                placeholder="Enter your account ID or login"
                 style={{
                   width: '100%',
                   padding: '0.5rem',
@@ -388,36 +498,39 @@ export default function BrokerIntegration() {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  background: colors.border,
-                  color: colors.text,
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={handleConnectBroker}
                 disabled={connectionStatus === 'connecting'}
                 style={{
                   flex: 1,
-                  padding: '0.5rem',
-                  background: '#3b82f6',
+                  padding: '0.5rem 1rem',
+                  background: connectionStatus === 'connecting' ? '#9ca3af' : '#3b82f6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '0.375rem',
                   cursor: connectionStatus === 'connecting' ? 'not-allowed' : 'pointer',
-                  opacity: connectionStatus === 'connecting' ? 0.6 : 1,
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
                 }}
               >
                 {connectionStatus === 'connecting' ? 'Connecting...' : 'Connect'}
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem 1rem',
+                  background: colors.border,
+                  color: colors.text,
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                }}
+              >
+                Cancel
               </button>
             </div>
           </div>
