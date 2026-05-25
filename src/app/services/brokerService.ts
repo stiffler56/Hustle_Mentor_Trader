@@ -72,7 +72,7 @@ class MetaTrader5Connector implements IBrokerConnector {
       this.accountId = credentials.accountId;
       console.log('[MT5] Authenticating with MetaTrader 5...');
       this.metaApi = new MetaApi(credentials.apiKey);
-      const accounts = await this.metaApi.get  MetatraderAccounts();
+      const accounts = await this.metaApi.getMetatraderAccounts();
       this.account = accounts.find(acc => acc.login === credentials.accountId && acc.type === 'mt5');
 
       if (this.account) {
