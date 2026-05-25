@@ -18,13 +18,23 @@ export default function AIMentor() {
   const { colors } = useTheme();
   const [question, setQuestion] = useState('What should I focus on before my next trade?');
   const [answer, setAnswer] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const report = useMemo(() => generateMentorReport(trades), [trades]);
   const closedTrades = trades.filter((trade) => trade.status === 'CLOSED' && trade.result);
   const psychologyReviewed = closedTrades.filter((trade) => trade.psychologicalMetrics).length;
 
-  const askMentor = () => {
-    setAnswer(answerTradingQuestion(question, trades));
+  const askMentor = async () => {
+    setIsLoading(true);
+    try {
+      const response = await answerTradingQuestion(question, trades, apiKey);
+      setAnswer(response);
+    } catch (error: any) {
+      setAnswer(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -69,6 +79,23 @@ export default function AIMentor() {
             <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MessageSquare size={18} style={{ color: '#3b82f6' }} /> Ask Your Data
             </h2>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: colors.textMuted, marginBottom: '0.25rem' }}>
+                Groq API Key (Optional for basic insights, required for advanced AI)
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your Groq API Key"
+                style={{ width: '100%', padding: '0.5rem', background: colors.background, color: colors.text, border: `1px solid ${colors.border}`, borderRadius: '0.375rem', fontSize: '0.875rem' }}
+              />
+              <p style={{ fontSize: '0.65rem', color: colors.textMuted, marginTop: '0.25rem' }}>
+                Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>console.groq.com</a>
+              </p>
+            </div>
+
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -77,9 +104,11 @@ export default function AIMentor() {
             />
             <button
               onClick={askMentor}
-              style={{ width: '100%', padding: '0.85rem 1rem', background: '#f59e0b', color: '#111827', border: 'none', borderRadius: '0.5rem', fontWeight: 700, cursor: 'pointer', marginBottom: '1rem' }}
+              disabled={isLoading}
+              style={{ width: '100%', padding: '0.85rem 1rem', background: isLoading ? colors.border : '#f59e0b', color: '#111827', border: 'none', borderRadius: '0.5rem', fontWeight: 700, cursor: isLoading ? 'not-allowed' : 'pointer', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
             >
-              Ask Mentor
+              {isLoading ? <Zap size={18} className="animate-spin" /> : null}
+              {isLoading ? 'Mentor is thinking...' : 'Ask Mentor'}
             </button>
             {answer && (
               <div style={{ padding: '1rem', background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '0.5rem', color: colors.textMuted, lineHeight: 1.6 }}>
