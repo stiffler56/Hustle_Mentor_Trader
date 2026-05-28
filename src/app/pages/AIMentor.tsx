@@ -18,7 +18,6 @@ export default function AIMentor() {
   const { colors } = useTheme();
   const [question, setQuestion] = useState('What should I focus on before my next trade?');
   const [answer, setAnswer] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const report = useMemo(() => generateMentorReport(trades), [trades]);
@@ -28,7 +27,7 @@ export default function AIMentor() {
   const askMentor = async () => {
     setIsLoading(true);
     try {
-      const response = await answerTradingQuestion(question, trades, apiKey);
+      const response = await answerTradingQuestion(question, trades);
       setAnswer(response);
     } catch (error: any) {
       setAnswer(`Error: ${error.message}`);
@@ -80,21 +79,7 @@ export default function AIMentor() {
               <MessageSquare size={18} style={{ color: '#3b82f6' }} /> Ask Your Data
             </h2>
             
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: colors.textMuted, marginBottom: '0.25rem' }}>
-                Groq API Key (Optional for basic insights, required for advanced AI)
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your Groq API Key"
-                style={{ width: '100%', padding: '0.5rem', background: colors.background, color: colors.text, border: `1px solid ${colors.border}`, borderRadius: '0.375rem', fontSize: '0.875rem' }}
-              />
-              <p style={{ fontSize: '0.65rem', color: colors.textMuted, marginTop: '0.25rem' }}>
-                Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>console.groq.com</a>
-              </p>
-            </div>
+
 
             <textarea
               value={question}
