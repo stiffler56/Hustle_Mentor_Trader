@@ -4,7 +4,6 @@
  */
 
 import type { BrokerAccount, BrokerTrade, Trade, BrokerSyncResponse } from '../data/types-enhanced';
-import { MetaApi, MetatraderAccount } from 'metaapi.cloud-sdk';
 
 // ─── Broker API Interfaces ─────────────────────────────────────────────────
 interface IBrokerConnector {
@@ -63,26 +62,15 @@ class InteractiveBrokersConnector implements IBrokerConnector {
 
 // ─── MetaTrader 5 Connector ────────────────────────────────────────────────
 class MetaTrader5Connector implements IBrokerConnector {
-  private metaApi: MetaApi | null = null;
-  private account: MetatraderAccount | null = null;
+  private account: any = null;
   private accountId: string = '';
 
   async authenticate(credentials: Record<string, string>): Promise<boolean> {
     try {
       this.accountId = credentials.accountId;
       console.log('[MT5] Authenticating with MetaTrader 5...');
-      this.metaApi = new MetaApi(credentials.apiKey);
-      const accounts = await this.metaApi.getMetatraderAccounts();
-      this.account = accounts.find(acc => acc.login === credentials.accountId && acc.type === 'mt5');
-
-      if (this.account) {
-        await this.account.waitConnected();
-        console.log('[MT5] Connected to MetaApi account:', this.account.name);
-        return true;
-      } else {
-        console.error('[MT5] MetaApi account not found or not MT5:', credentials.accountId);
-        return false;
-      }
+      console.error('[MT5] MetaApi SDK is not installed. MT5 sync is unavailable in this build.');
+      return false;
     } catch (error) {
       console.error('[MT5] Authentication failed:', error);
       return false;

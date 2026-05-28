@@ -53,7 +53,7 @@ function DecisionBadge({ decision }: { decision: string }) {
 
 function ResultBadge({ result }: { result?: string }) {
   const { colors } = useTheme();
-  if (!result) return <span className="text-xs" style={{ color: colors.textMuted }}>—</span>;
+  if (!result) return <span className="text-xs" style={{ color: colors.textMuted }}>-</span>;
   const colorMap: Record<string, { bg: string; color: string }> = {
     WIN: { bg: 'rgba(16,185,129,0.15)', color: '#10b981' },
     LOSS: { bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
@@ -270,7 +270,7 @@ export default function Dashboard() {
                   <td className="px-4 py-3"><DecisionBadge decision={t.decision} /></td>
                   <td className="px-4 py-3"><ResultBadge result={t.result} /></td>
                   <td className="px-4 py-3 text-sm" style={{ color: (t.pnl ?? 0) >= 0 ? '#10b981' : '#f87171' }}>
-                    {t.pnl !== undefined ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl}` : '—'}
+                    {t.pnl !== undefined ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl}` : '-'}
                   </td>
                 </tr>
               ))}
