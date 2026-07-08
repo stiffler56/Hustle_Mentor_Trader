@@ -6,6 +6,29 @@ import * as kv from "./kv_store.tsx";
 
 const app = new Hono();
 
+const AI_MENTOR_SYSTEM_PROMPT = `You are HU$TLE Trading AI Mentor, a disciplined trading journal coach.
+
+Your job is to analyze only the trade data provided by the app. Give direct, practical feedback that helps the trader avoid repeated mistakes and repeat their best setups.
+
+Rules:
+- Do not invent trades, account data, market data, or performance metrics.
+- Do not promise profits or give financial guarantees.
+- Focus on behavior, risk discipline, trade selection, psychology, and repeatable process.
+- If there is not enough data, say exactly what data is missing.
+- When possible, cite evidence from the provided summary: win rate, P&L, session, strategy, risk, score, and psychology flags.
+- Keep the answer concise and actionable.
+- End with 3 next actions.`;
+
+function fallbackAiMentorResponse(fallbackAnswer: unknown, error?: string) {
+  return {
+    answer: typeof fallbackAnswer === 'string' && fallbackAnswer.trim()
+      ? fallbackAnswer
+      : 'AI Mentor needs more trade data before it can provide a reliable answer.',
+    source: 'local-fallback',
+    ...(error ? { error } : {}),
+  };
+}
+
 app.use('*', logger(console.log));
 app.use("/*", cors({
   origin: "*",
@@ -17,6 +40,77 @@ app.use("/*", cors({
 
 // ── Health ──────────────────────────────────────────────────────────────────
 app.get("/make-server-4363d7a5/health", (c) => c.json({ status: "ok" }));
+
+app.post("/make-server-4363d7a5/ai-mentor", async (c) => {
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(fallbackAiMentorResponse('', 'Invalid mentor request.'), 400);
+  }
+
+  const groqApiKey = Deno.env.get('GROQ_API_KEY');
+  const model = Deno.env.get('GROQ_MODEL') || 'llama-3.3-70b-versatile';
+
+  if (!groqApiKey) {
+    return c.json(fallbackAiMentorResponse(body.fallbackAnswer, 'GROQ_API_KEY is not configured.'));
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const userContent = JSON.stringify({
+      question: body.question,
+      summary: body.summary,
+      report: body.report,
+      performance: body.performance,
+      recentClosedTrades: body.recentClosedTrades,
+    }, null, 2);
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.35,
+        max_tokens: 700,
+        messages: [
+          { role: 'system', content: AI_MENTOR_SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `Answer the trader's question using only this app-provided trading journal data:\n\n${userContent}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      console.log('Groq AI Mentor request failed:', response.status, errorBody.slice(0, 300));
+      return c.json(fallbackAiMentorResponse(body.fallbackAnswer, `Groq request failed with status ${response.status}.`));
+    }
+
+    const completion = await response.json();
+    const answer = completion?.choices?.[0]?.message?.content?.trim();
+
+    if (!answer) {
+      return c.json(fallbackAiMentorResponse(body.fallbackAnswer, 'Groq returned an empty answer.'));
+    }
+
+    return c.json({ answer, source: 'groq' });
+  } catch (err: any) {
+    const message = err?.name === 'AbortError' ? 'Groq request timed out.' : 'Groq request failed.';
+    console.log('AI Mentor error:', message);
+    return c.json(fallbackAiMentorResponse(body.fallbackAnswer, message));
+  } finally {
+    clearTimeout(timeout);
+  }
+});
 
 // ── Auth helpers ────────────────────────────────────────────────────────────
 function adminClient() {
