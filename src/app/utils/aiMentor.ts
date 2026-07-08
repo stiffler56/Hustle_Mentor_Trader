@@ -1,4 +1,5 @@
 import type { AIAnalysis, Trade } from '../data/types';
+import { SERVER_BASE } from '../data/AuthContext';
 
 type Severity = 'success' | 'warning' | 'danger' | 'info';
 
@@ -19,6 +20,12 @@ export interface MentorReport {
   nextActions: string[];
   bestSetup?: string;
   worstPattern?: string;
+}
+
+export interface MentorAnswer {
+  answer: string;
+  source: 'groq' | 'local-fallback';
+  error?: string;
 }
 
 const closedTrades = (trades: Trade[]) => trades.filter((trade) => trade.status === 'CLOSED' && trade.result);
@@ -249,12 +256,11 @@ export function analyzeTradeWithMentor(trade: Trade, historicalTrades: Trade[]):
   };
 }
 
-export async function answerTradingQuestion(question: string, trades: Trade[]): Promise<string> {
+function answerTradingQuestionLocally(question: string, trades: Trade[]): string {
   const q = question.toLowerCase();
   const closed = closedTrades(trades);
   const report = generateMentorReport(trades);
 
-<<<<<<< Updated upstream
   // Rule-based responses for common questions
   if (q.includes('best') && q.includes('session')) {
     const best = findBestGroup(groupBy(closed, (trade) => trade.session));
@@ -264,87 +270,6 @@ export async function answerTradingQuestion(question: string, trades: Trade[]): 
   if (q.includes('worst') && q.includes('session')) {
     const worst = findWorstGroup(groupBy(closed, (trade) => trade.session));
     return worst ? `Your weakest session is ${worst.key}: ${worst.winRate}% win rate over ${worst.count} trades with $${worst.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your weakest session.';
-=======
-    if (q.includes('best') && q.includes('session')) {
-      const best = findBestGroup(groupBy(closed, (trade) => trade.session));
-      return best ? `Your best session is ${best.key}: ${best.winRate}% win rate over ${best.count} trades with $${best.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your best session.';
-    }
-
-    if (q.includes('worst') && q.includes('session')) {
-      const worst = findWorstGroup(groupBy(closed, (trade) => trade.session));
-      return worst ? `Your weakest session is ${worst.key}: ${worst.winRate}% win rate over ${worst.count} trades with $${worst.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your weakest session.';
-    }
-
-    if (q.includes('strategy')) {
-      const best = findBestGroup(groupBy(closed, (trade) => trade.strategy));
-      return best ? `Your strongest strategy is ${best.key}: ${best.winRate}% win rate over ${best.count} trades. Keep using strict rules around that setup.` : 'I need more closed trades to compare strategies.';
-    }
-
-    if (q.includes('risk')) {
-      const highRisk = closed.filter((trade) => trade.risk > 2);
-      return highRisk.length ? `You have ${highRisk.length} high-risk trades above 2%. Reduce risk to 1-1.5% until consistency improves.` : 'Your risk profile looks controlled; I do not see closed trades above 2% risk.';
-    }
-
-    if (q.includes('psychology') || q.includes('emotion') || q.includes('revenge')) {
-      const reviewed = closed.filter((trade) => trade.psychologicalMetrics).length;
-      return reviewed ? `I found psychology data on ${reviewed} trades. Main recommendation: ${report.nextActions[0]}` : 'No psychology-reviewed trades yet. Add entries in Psychology Journal so I can detect emotional patterns.';
-    }
-
-    return report.summary;
-  }
-
-  try {
-    const report = generateMentorReport(trades);
-    const tradeSummary = trades.slice(-10).map(t => ({
-      pair: t.pair,
-      result: t.result,
-      pnl: t.pnl,
-      strategy: t.strategy,
-      session: t.session,
-      risk: t.risk,
-      focus: t.mentalFocus,
-      psychology: t.psychologicalMetrics
-    }));
-
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert trading mentor. Analyze the user's trading data and answer their question.
-            Current Performance Summary: ${report.summary}
-            Strengths: ${report.strengths.join(', ')}
-            Weaknesses: ${report.weaknesses.join(', ')}
-            Recent Trades (last 10): ${JSON.stringify(tradeSummary)}
-            
-            Provide professional, actionable, and encouraging advice based on the data.`
-          },
-          {
-            role: 'user',
-            content: question
-          }
-        ],
-        model: 'llama-3.3-70b-versatile',
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Groq API request failed with status ${response.status}`);
-    }
-
-    const completion = await response.json();
-
-    return completion.choices?.[0]?.message?.content || 'I could not generate a response at this time.';
-  } catch (error: any) {
-    console.error('Groq API Error:', error);
-    return `Error connecting to AI Mentor: ${error.message}. Falling back to rule-based response: ${generateMentorReport(trades).summary}`;
->>>>>>> Stashed changes
   }
 
   if (q.includes('strategy')) {
@@ -364,4 +289,108 @@ export async function answerTradingQuestion(question: string, trades: Trade[]): 
 
   // Default response using mentor report
   return report.summary;
+}
+
+function summarizeGroup<T extends string>(trades: Trade[], getter: (trade: Trade) => T) {
+  return Object.entries(groupBy(trades, getter)).map(([key, items]) => {
+    const groupTrades = items as Trade[];
+    return {
+      key,
+      trades: groupTrades.length,
+      winRate: pct(winningTrades(groupTrades).length, groupTrades.length),
+      pnl: Number(groupTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)),
+      averageRisk: Number(avg(groupTrades.map((trade) => trade.risk || 0)).toFixed(2)),
+      averageScore: Math.round(avg(groupTrades.map((trade) => trade.score || 0))),
+    };
+  });
+}
+
+function buildMentorPayload(question: string, trades: Trade[]) {
+  const report = generateMentorReport(trades);
+  const closed = closedTrades(trades);
+  const wins = winningTrades(closed);
+  const losses = losingTrades(closed);
+  const psychologyReviewed = closed.filter((trade) => trade.psychologicalMetrics);
+  const highRiskTrades = closed.filter((trade) => trade.risk > 2);
+
+  return {
+    question,
+    fallbackAnswer: answerTradingQuestionLocally(question, trades),
+    report,
+    summary: {
+      totalTrades: trades.length,
+      closedTrades: closed.length,
+      wins: wins.length,
+      losses: losses.length,
+      breakEven: closed.filter((trade) => trade.result === 'BE').length,
+      winRate: pct(wins.length, closed.length),
+      totalPnl: Number(closed.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)),
+      averageRisk: Number(avg(closed.map((trade) => trade.risk || 0)).toFixed(2)),
+      averageScore: Math.round(avg(closed.map((trade) => trade.score || 0))),
+      highRiskTrades: highRiskTrades.length,
+      psychologyReviewed: psychologyReviewed.length,
+      psychologyFlags: {
+        revengeTrading: closed.filter((trade) => trade.psychologicalMetrics?.wasRevengeTrading).length,
+        chasing: closed.filter((trade) => trade.psychologicalMetrics?.wasChasing).length,
+        overconfident: closed.filter((trade) => trade.psychologicalMetrics?.wasOverconfident).length,
+      },
+    },
+    performance: {
+      bySession: summarizeGroup(closed, (trade) => trade.session),
+      byStrategy: summarizeGroup(closed, (trade) => trade.strategy),
+    },
+    recentClosedTrades: closed.slice(0, 30).map((trade) => ({
+      date: trade.date,
+      pair: trade.pair,
+      session: trade.session,
+      strategy: trade.strategy,
+      orderType: trade.orderType,
+      trend: trade.trend,
+      score: trade.score,
+      decision: trade.decision,
+      risk: trade.risk,
+      rrRatio: trade.rrRatio,
+      result: trade.result,
+      pnl: trade.pnl,
+      mentalFocus: trade.mentalFocus,
+      notes: trade.notes,
+      psychology: trade.psychologicalMetrics ? {
+        preTradeEmotionalState: trade.psychologicalMetrics.preTradeEmotionalState,
+        postTradeEmotionalState: trade.psychologicalMetrics.postTradeEmotionalState,
+        wasRevengeTrading: trade.psychologicalMetrics.wasRevengeTrading,
+        wasChasing: trade.psychologicalMetrics.wasChasing,
+        wasOverconfident: trade.psychologicalMetrics.wasOverconfident,
+        lessonsLearned: trade.psychologicalMetrics.lessonsLearned,
+      } : null,
+    })),
+  };
+}
+
+export async function answerTradingQuestion(question: string, trades: Trade[]): Promise<MentorAnswer> {
+  const payload = buildMentorPayload(question, trades);
+
+  try {
+    const response = await fetch(`${SERVER_BASE}/ai-mentor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `AI Mentor request failed with status ${response.status}`);
+    }
+
+    return {
+      answer: data.answer || payload.fallbackAnswer,
+      source: data.source === 'groq' ? 'groq' : 'local-fallback',
+      error: data.error,
+    };
+  } catch (error: any) {
+    return {
+      answer: payload.fallbackAnswer,
+      source: 'local-fallback',
+      error: error.message?.includes('fetch') ? 'AI Mentor API is not reachable.' : error.message || 'AI Mentor API failed.',
+    };
+  }
 }
