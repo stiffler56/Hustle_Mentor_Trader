@@ -24,7 +24,7 @@ Check what changed:
 
 ```bash
 git status
-git status --short --branch
+git status --short --branchs
 ```
 
 See file changes:
@@ -46,6 +46,14 @@ Commit staged files:
 ```bash
 git commit -m "Explain Git workflow"
 ```
+
+Commit many files at once:
+
+```bash
+git add . && git commit -m "your message"
+```
+
+
 
 Push local commits to GitHub:
 
