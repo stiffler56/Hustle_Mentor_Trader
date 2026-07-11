@@ -50,7 +50,7 @@ git commit -m "Explain Git workflow"
 Commit many files at once:
 
 ```bash
-git add . && git commit -m "your message"
+
 ```
 
 
