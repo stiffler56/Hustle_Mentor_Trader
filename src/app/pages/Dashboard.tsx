@@ -33,6 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
+import { TradeCalendar } from '../components/TradeCalendar';
 import { useTheme } from '../data/ThemeContext';
 import type { Session, Strategy, Trade } from '../data/types';
 
@@ -347,7 +348,6 @@ function EmptyCommandCenter() {
     </div>
   );
 }
-
 export default function Dashboard() {
   const { trades } = useTradesContext();
   const { isDayMode, toggleTheme, colors } = useTheme();
@@ -448,6 +448,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
         <div className="rounded-2xl p-5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
           <div className="flex flex-col lg:flex-row lg:items-start gap-5 justify-between">
+
+            {/* trading calendar section */}
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${toneColor(insight.tone)}1f` }}>
