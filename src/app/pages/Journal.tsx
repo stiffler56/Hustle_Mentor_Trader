@@ -763,7 +763,7 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
             <span className="text-xs" style={{ color: trade.orderType === 'Buy' ? '#10b981' : '#f87171' }}>{trade.orderType}</span>
             {trade.isChallengedTrade && <span className="text-xs px-1 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>🔥</span>}
             {hasScreenshots && <Image size={11} style={{ color: colors.textMuted }} />}
-            {trade.reviewVideoUrl && <Video size={11} style={{ color: '#a78bfa' }} title="Review video attached" />}
+            {trade.reviewVideoUrl && <Video size={11} style={{ color: '#a78bfa' }} aria-label="Review video attached" />}
           </div>
         </td>
         <td className="px-4 py-3 text-xs hidden md:table-cell" style={{ color: colors.textSub }}>{trade.session}</td>
