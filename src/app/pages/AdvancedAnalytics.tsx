@@ -89,7 +89,7 @@ export default function AdvancedAnalytics() {
   }
 
   return (
-    <div style={{ background: colors.background, color: colors.text, minHeight: '100vh', padding: '2rem' }}>
+    <div style={{ background: colors.appBg, color: colors.text, minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -191,7 +191,7 @@ export default function AdvancedAnalytics() {
                 <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
                 <Tooltip
                   contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${value.toFixed(2)}`}
+                  formatter={(value) => `$${Number(value).toFixed(2)}`}
                 />
                 <Area type="monotone" dataKey="cumulativePnL" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEquity)" />
               </AreaChart>
@@ -224,7 +224,7 @@ export default function AdvancedAnalytics() {
                 <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
                 <Tooltip
                   contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${value.toFixed(2)}`}
+                  formatter={(value) => `$${Number(value).toFixed(2)}`}
                 />
                 <Area type="monotone" dataKey="drawdown" stroke="#ef4444" fillOpacity={1} fill="url(#colorDrawdown)" />
               </AreaChart>
@@ -251,7 +251,7 @@ export default function AdvancedAnalytics() {
                 <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
                 <Tooltip
                   contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${value.toFixed(2)}`}
+                  formatter={(value) => `$${Number(value).toFixed(2)}`}
                 />
                 <Bar dataKey="totalPnL" fill="#3b82f6" radius={[8, 8, 0, 0]}>
                   {monthlyPerformance.map((entry, index) => (
@@ -275,39 +275,39 @@ export default function AdvancedAnalytics() {
           >
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem' }}>Performance Metrics</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Total Trades</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.totalTrades}</p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Profit Factor</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: performanceMetrics.profitFactor >= 1.5 ? '#10b981' : '#f59e0b' }}>
                   {performanceMetrics.profitFactor.toFixed(2)}
                 </p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Risk/Reward Ratio</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.riskRewardRatio.toFixed(2)}</p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Expectancy</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: performanceMetrics.expectancy >= 0 ? '#10b981' : '#ef4444' }}>
                   ${performanceMetrics.expectancy.toFixed(2)}
                 </p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Sharpe Ratio</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.sharpeRatio.toFixed(2)}</p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Max Consecutive Wins</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>{consecutiveStats.maxConsecutiveWins}</p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Max Consecutive Losses</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>{consecutiveStats.maxConsecutiveLosses}</p>
               </div>
-              <div style={{ padding: '1rem', background: colors.background, borderRadius: '0.5rem' }}>
+              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
                 <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Return on Risk</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.returnOnRisk.toFixed(2)}</p>
               </div>
