@@ -1,320 +1,274 @@
 /**
- * Advanced Analytics Page
+ * Advanced Analytics Utilities
  * Issue #2: Enhanced Reporting and Customization
- * Professional-grade analytics with Equity Curve, Drawdown analysis, and performance metrics
+ * Provides professional-grade analytics including Equity Curve, Drawdown, and performance metrics
  */
 
-import { useState } from 'react';
-import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell,
-} from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Download, Filter } from 'lucide-react';
-import { useTradesContext } from '../data/TradesContext';
-import { useTheme } from '../data/ThemeContext';
-import {
-  calculateEquityCurve,
-  calculateDrawdown,
-  calculateMaxDrawdown,
-  calculatePerformanceMetrics,
-  calculateMonthlyPerformance,
-  calculateConsecutiveStats,
-} from '../utils/advancedAnalytics';
+import type { Trade } from '../data/types';
 
-type ChartView = 'equity' | 'drawdown' | 'monthly' | 'metrics';
+// ─── Equity Curve Data ─────────────────────────────────────────────────────
+export interface EquityCurvePoint {
+  date: string;
+  cumulativePnL: number;
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+}
 
-export default function AdvancedAnalytics() {
-  const { trades } = useTradesContext();
-  const { colors } = useTheme();
-  const [activeView, setActiveView] = useState<ChartView>('equity');
-  const [initialBalance, setInitialBalance] = useState(10000);
+export function calculateEquityCurve(trades: Trade[], initialBalance: number = 10000): EquityCurvePoint[] {
+  const closedTrades = trades
+    .filter(t => t.status === 'CLOSED' && t.result && t.pnl !== undefined)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // Calculate all analytics
-  const equityCurve = calculateEquityCurve(trades, initialBalance);
-  const drawdownData = calculateDrawdown(equityCurve, initialBalance);
-  const maxDrawdown = calculateMaxDrawdown(drawdownData);
-  const performanceMetrics = calculatePerformanceMetrics(trades);
-  const monthlyPerformance = calculateMonthlyPerformance(trades);
-  const consecutiveStats = calculateConsecutiveStats(trades);
+  const equityCurve: EquityCurvePoint[] = [];
+  let cumulativePnL = 0;
+  let winCount = 0;
+  let lossCount = 0;
 
-  const currentEquity = initialBalance + (equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].cumulativePnL : 0);
-  const totalReturn = ((currentEquity - initialBalance) / initialBalance) * 100;
+  closedTrades.forEach((trade, index) => {
+    cumulativePnL += trade.pnl ?? 0;
+    if (trade.result === 'WIN') winCount++;
+    else if (trade.result === 'LOSS') lossCount++;
 
-  // ─── Metric Card Component ────────────────────────────────────────────
-  function MetricCard({ label, value, subValue, icon: Icon, color, trend }: {
-    label: string;
-    value: string | number;
-    subValue?: string;
-    icon: React.ElementType;
-    color: string;
-    trend?: 'up' | 'down' | 'neutral';
-  }) {
-    return (
-      <div
-        style={{
-          background: colors.surface,
-          border: `1px solid ${colors.border}`,
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-          <div>
-            <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>{label}</p>
-            <p style={{ fontSize: '1.875rem', fontWeight: 'bold', color }}>{value}</p>
-            {subValue && <p style={{ fontSize: '0.75rem', color: colors.textMuted, marginTop: '0.25rem' }}>{subValue}</p>}
-          </div>
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.5rem',
-              background: `${color}15`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {trend === 'up' ? (
-              <TrendingUp size={20} style={{ color }} />
-            ) : trend === 'down' ? (
-              <TrendingDown size={20} style={{ color }} />
-            ) : (
-              <Icon size={20} style={{ color }} />
-            )}
-          </div>
-        </div>
-      </div>
-    );
+    equityCurve.push({
+      date: trade.date,
+      cumulativePnL,
+      tradeCount: index + 1,
+      winCount,
+      lossCount,
+    });
+  });
+
+  return equityCurve;
+}
+
+// ─── Drawdown Analysis ────────────────────────────────────────────────────
+export interface DrawdownData {
+  date: string;
+  equity: number;
+  drawdown: number;
+  drawdownPercent: number;
+  peakEquity: number;
+}
+
+export function calculateDrawdown(equityCurve: EquityCurvePoint[], initialBalance: number = 10000): DrawdownData[] {
+  const drawdownData: DrawdownData[] = [];
+  let peakEquity = initialBalance;
+
+  equityCurve.forEach((point) => {
+    const currentEquity = initialBalance + point.cumulativePnL;
+    if (currentEquity > peakEquity) {
+      peakEquity = currentEquity;
+    }
+
+    const drawdown = peakEquity - currentEquity;
+    const drawdownPercent = (drawdown / peakEquity) * 100;
+
+    drawdownData.push({
+      date: point.date,
+      equity: currentEquity,
+      drawdown,
+      drawdownPercent,
+      peakEquity,
+    });
+  });
+
+  return drawdownData;
+}
+
+// ─── Maximum Drawdown ─────────────────────────────────────────────────────
+export interface MaxDrawdownStats {
+  maxDrawdown: number;
+  maxDrawdownPercent: number;
+  maxDrawdownDate: string;
+  currentDrawdown: number;
+  currentDrawdownPercent: number;
+}
+
+export function calculateMaxDrawdown(drawdownData: DrawdownData[]): MaxDrawdownStats {
+  let maxDrawdown = 0;
+  let maxDrawdownPercent = 0;
+  let maxDrawdownDate = '';
+
+  drawdownData.forEach((point) => {
+    if (point.drawdown > maxDrawdown) {
+      maxDrawdown = point.drawdown;
+      maxDrawdownPercent = point.drawdownPercent;
+      maxDrawdownDate = point.date;
+    }
+  });
+
+  const currentDrawdown = drawdownData.length > 0 ? drawdownData[drawdownData.length - 1].drawdown : 0;
+  const currentDrawdownPercent = drawdownData.length > 0 ? drawdownData[drawdownData.length - 1].drawdownPercent : 0;
+
+  return {
+    maxDrawdown,
+    maxDrawdownPercent,
+    maxDrawdownDate,
+    currentDrawdown,
+    currentDrawdownPercent,
+  };
+}
+
+// ─── Performance Metrics ──────────────────────────────────────────────────
+export interface PerformanceMetrics {
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  breakEvenTrades: number;
+  winRate: number;
+  totalPnL: number;
+  averageWin: number;
+  averageLoss: number;
+  profitFactor: number;
+  riskRewardRatio: number;
+  expectancy: number;
+  sharpeRatio: number;
+  returnOnRisk: number;
+}
+
+export function calculatePerformanceMetrics(trades: Trade[], riskFreeRate: number = 0.02): PerformanceMetrics {
+  const closedTrades = trades.filter(t => t.status === 'CLOSED' && t.result && t.pnl !== undefined);
+
+  if (closedTrades.length === 0) {
+    return {
+      totalTrades: 0,
+      winningTrades: 0,
+      losingTrades: 0,
+      breakEvenTrades: 0,
+      winRate: 0,
+      totalPnL: 0,
+      averageWin: 0,
+      averageLoss: 0,
+      profitFactor: 0,
+      riskRewardRatio: 0,
+      expectancy: 0,
+      sharpeRatio: 0,
+      returnOnRisk: 0,
+    };
   }
 
-  return (
-    <div style={{ background: colors.appBg, color: colors.text, minHeight: '100vh', padding: '2rem' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            📊 Advanced Analytics
-          </h1>
-          <p style={{ color: colors.textMuted }}>
-            Professional-grade performance analysis with Equity Curve, Drawdown, and detailed metrics.
-          </p>
-        </div>
+  const wins = closedTrades.filter(t => t.result === 'WIN');
+  const losses = closedTrades.filter(t => t.result === 'LOSS');
+  const breakEvens = closedTrades.filter(t => t.result === 'BE');
 
-        {/* Key Metrics Overview */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-          <MetricCard
-            label="Current Equity"
-            value={`$${currentEquity.toFixed(2)}`}
-            subValue={`Total Return: ${totalReturn.toFixed(2)}%`}
-            icon={TrendingUp}
-            color={totalReturn >= 0 ? '#10b981' : '#ef4444'}
-            trend={totalReturn >= 0 ? 'up' : 'down'}
-          />
-          <MetricCard
-            label="Max Drawdown"
-            value={`$${maxDrawdown.maxDrawdown.toFixed(2)}`}
-            subValue={`${maxDrawdown.maxDrawdownPercent.toFixed(2)}% | Date: ${maxDrawdown.maxDrawdownDate}`}
-            icon={AlertTriangle}
-            color="#f59e0b"
-          />
-          <MetricCard
-            label="Win Rate"
-            value={`${performanceMetrics.winRate.toFixed(1)}%`}
-            subValue={`${performanceMetrics.winningTrades}W / ${performanceMetrics.losingTrades}L`}
-            icon={CheckCircle2}
-            color={performanceMetrics.winRate >= 50 ? '#10b981' : '#ef4444'}
-          />
-          <MetricCard
-            label="Profit Factor"
-            value={performanceMetrics.profitFactor.toFixed(2)}
-            subValue={`Avg Win: $${performanceMetrics.averageWin.toFixed(2)}`}
-            icon={TrendingUp}
-            color={performanceMetrics.profitFactor >= 1.5 ? '#10b981' : '#f59e0b'}
-          />
-        </div>
+  const totalPnL = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+  const winPnL = wins.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+  const lossPnL = Math.abs(losses.reduce((sum, t) => sum + (t.pnl ?? 0), 0));
 
-        {/* View Selector */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '2rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          {(['equity', 'drawdown', 'monthly', 'metrics'] as const).map((view) => (
-            <button
-              key={view}
-              onClick={() => setActiveView(view)}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                border: activeView === view ? `2px solid #3b82f6` : `1px solid ${colors.border}`,
-                background: activeView === view ? '#3b82f6' : colors.surface,
-                color: activeView === view ? 'white' : colors.text,
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: activeView === view ? '600' : '400',
-              }}
-            >
-              {view === 'equity' && '📈 Equity Curve'}
-              {view === 'drawdown' && '📉 Drawdown'}
-              {view === 'monthly' && '📅 Monthly'}
-              {view === 'metrics' && '🎯 Metrics'}
-            </button>
-          ))}
-        </div>
+  const averageWin = wins.length > 0 ? winPnL / wins.length : 0;
+  const averageLoss = losses.length > 0 ? lossPnL / losses.length : 0;
+  const profitFactor = lossPnL > 0 ? winPnL / lossPnL : winPnL > 0 ? Infinity : 0;
+  const riskRewardRatio = averageLoss > 0 ? averageWin / averageLoss : 0;
 
-        {/* Equity Curve Chart */}
-        {activeView === 'equity' && (
-          <div
-            style={{
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
-              marginBottom: '2rem',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Equity Curve</h2>
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={equityCurve}>
-                <defs>
-                  <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="date" stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <Tooltip
-                  contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${Number(value).toFixed(2)}`}
-                />
-                <Area type="monotone" dataKey="cumulativePnL" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEquity)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+  const winRate = (wins.length / closedTrades.length) * 100;
+  const expectancy = (winRate / 100) * averageWin - ((100 - winRate) / 100) * averageLoss;
 
-        {/* Drawdown Chart */}
-        {activeView === 'drawdown' && (
-          <div
-            style={{
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
-              marginBottom: '2rem',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Drawdown Analysis</h2>
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={drawdownData}>
-                <defs>
-                  <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="date" stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <Tooltip
-                  contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${Number(value).toFixed(2)}`}
-                />
-                <Area type="monotone" dataKey="drawdown" stroke="#ef4444" fillOpacity={1} fill="url(#colorDrawdown)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+  // Sharpe Ratio calculation (simplified)
+  const returns = closedTrades.map(t => t.pnl ?? 0);
+  const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
+  const stdDev = Math.sqrt(variance);
+  const sharpeRatio = stdDev > 0 ? (avgReturn - riskFreeRate / closedTrades.length) / stdDev : 0;
 
-        {/* Monthly Performance */}
-        {activeView === 'monthly' && (
-          <div
-            style={{
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
-              marginBottom: '2rem',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Monthly Performance</h2>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={monthlyPerformance}>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="month" stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <YAxis stroke={colors.textMuted} style={{ fontSize: '12px' }} />
-                <Tooltip
-                  contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 8 }}
-                  formatter={(value) => `$${Number(value).toFixed(2)}`}
-                />
-                <Bar dataKey="totalPnL" fill="#3b82f6" radius={[8, 8, 0, 0]}>
-                  {monthlyPerformance.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.totalPnL >= 0 ? '#10b981' : '#ef4444'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+  // Return on Risk (assuming average risk per trade)
+  const avgRisk = closedTrades.reduce((sum, t) => sum + (t.risk ?? 0), 0) / closedTrades.length;
+  const returnOnRisk = avgRisk > 0 ? totalPnL / (avgRisk * closedTrades.length) : 0;
 
-        {/* Detailed Metrics */}
-        {activeView === 'metrics' && (
-          <div
-            style={{
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem' }}>Performance Metrics</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Total Trades</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.totalTrades}</p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Profit Factor</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: performanceMetrics.profitFactor >= 1.5 ? '#10b981' : '#f59e0b' }}>
-                  {performanceMetrics.profitFactor.toFixed(2)}
-                </p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Risk/Reward Ratio</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.riskRewardRatio.toFixed(2)}</p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Expectancy</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: performanceMetrics.expectancy >= 0 ? '#10b981' : '#ef4444' }}>
-                  ${performanceMetrics.expectancy.toFixed(2)}
-                </p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Sharpe Ratio</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.sharpeRatio.toFixed(2)}</p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Max Consecutive Wins</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>{consecutiveStats.maxConsecutiveWins}</p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Max Consecutive Losses</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>{consecutiveStats.maxConsecutiveLosses}</p>
-              </div>
-              <div style={{ padding: '1rem', background: colors.inputBg, borderRadius: '0.5rem' }}>
-                <p style={{ fontSize: '0.875rem', color: colors.textMuted, marginBottom: '0.5rem' }}>Return on Risk</p>
-                <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{performanceMetrics.returnOnRisk.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return {
+    totalTrades: closedTrades.length,
+    winningTrades: wins.length,
+    losingTrades: losses.length,
+    breakEvenTrades: breakEvens.length,
+    winRate: Math.round(winRate * 100) / 100,
+    totalPnL: Math.round(totalPnL * 100) / 100,
+    averageWin: Math.round(averageWin * 100) / 100,
+    averageLoss: Math.round(averageLoss * 100) / 100,
+    profitFactor: Math.round(profitFactor * 100) / 100,
+    riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
+    expectancy: Math.round(expectancy * 100) / 100,
+    sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+    returnOnRisk: Math.round(returnOnRisk * 100) / 100,
+  };
+}
+
+// ─── Monthly Performance ──────────────────────────────────────────────────
+export interface MonthlyPerformance {
+  month: string;
+  totalPnL: number;
+  trades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+export function calculateMonthlyPerformance(trades: Trade[]): MonthlyPerformance[] {
+  const closedTrades = trades.filter(t => t.status === 'CLOSED' && t.result && t.pnl !== undefined);
+  const monthlyMap: Record<string, Trade[]> = {};
+
+  closedTrades.forEach((trade) => {
+    const month = trade.date.slice(0, 7); // YYYY-MM
+    if (!monthlyMap[month]) monthlyMap[month] = [];
+    monthlyMap[month].push(trade);
+  });
+
+  return Object.entries(monthlyMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, monthTrades]) => {
+      const wins = monthTrades.filter(t => t.result === 'WIN').length;
+      const losses = monthTrades.filter(t => t.result === 'LOSS').length;
+      const totalPnL = monthTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+
+      return {
+        month,
+        totalPnL: Math.round(totalPnL * 100) / 100,
+        trades: monthTrades.length,
+        wins,
+        losses,
+        winRate: monthTrades.length > 0 ? Math.round((wins / monthTrades.length) * 100) : 0,
+      };
+    });
+}
+
+// ─── Consecutive Wins/Losses ──────────────────────────────────────────────
+export interface ConsecutiveStats {
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  currentStreak: { type: 'win' | 'loss' | 'none'; count: number };
+}
+
+export function calculateConsecutiveStats(trades: Trade[]): ConsecutiveStats {
+  const closedTrades = trades.filter(t => t.status === 'CLOSED' && t.result).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  let maxConsecutiveWins = 0;
+  let maxConsecutiveLosses = 0;
+  let currentWinStreak = 0;
+  let currentLossStreak = 0;
+  let currentStreakType: 'win' | 'loss' | 'none' = 'none';
+  let currentStreakCount = 0;
+
+  closedTrades.forEach((trade) => {
+    if (trade.result === 'WIN') {
+      currentWinStreak++;
+      maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWinStreak);
+      currentLossStreak = 0;
+      currentStreakType = 'win';
+      currentStreakCount = currentWinStreak;
+    } else if (trade.result === 'LOSS') {
+      currentLossStreak++;
+      maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLossStreak);
+      currentWinStreak = 0;
+      currentStreakType = 'loss';
+      currentStreakCount = currentLossStreak;
+    }
+  });
+
+  return {
+    maxConsecutiveWins,
+    maxConsecutiveLosses,
+    currentStreak: {
+      type: currentStreakType,
+      count: currentStreakCount,
+    },
+  };
 }
