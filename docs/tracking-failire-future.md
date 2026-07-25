@@ -561,6 +561,4 @@ This project is proprietary. All rights reserved.
 - [ ] Upload trade screenshots
 - [ ] Review your analytics
 -
-(Content truncated due to size limit.
- Use line ranges to read remaining content)
- dhamaad
+(Content truncated due to size limit. Use line ranges to read remaining content)
