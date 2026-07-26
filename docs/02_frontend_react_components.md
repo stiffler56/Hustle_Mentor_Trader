@@ -690,3 +690,5 @@ function TradeCard({ trade }: TradeCardProps) {
  ## **4. feedback **
  // write your idea //
   samee wacaal celin marka dhamayso 
+  this last week iam making nonsense commit for my github 
+  
