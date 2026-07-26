@@ -686,3 +686,7 @@ function TradeCard({ trade }: TradeCardProps) {
 
 // ✅ Good: Use Context for global state<UserProv
 (Content truncated due to size limit. Use line ranges to read remaining content)
+ 
+ ## **4. feedback **
+ // write your idea //
+  samee wacaal celin marka dhamayso 
