@@ -691,4 +691,4 @@ function TradeCard({ trade }: TradeCardProps) {
  // write your idea //
   samee wacaal celin marka dhamayso 
   this last week iam making nonsense commit for my github 
-  
+  last week of the motn 
