@@ -692,4 +692,5 @@ function TradeCard({ trade }: TradeCardProps) {
   samee wacaal celin marka dhamayso 
   this last week iam making nonsense commit for my github 
   last week of the motn 
-  i will maker commit since i found ai 
+  i will maker commit since i found ai so far 
+  nafada cashaqee aduunka 
