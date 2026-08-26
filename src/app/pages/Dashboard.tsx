@@ -33,6 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
+import { TradeCalendar } from '../components/TradeCalendar';
 import { useTheme } from '../data/ThemeContext';
 import type { Session, Strategy, Trade } from '../data/types';
 
@@ -443,6 +444,8 @@ export default function Dashboard() {
         <StatCard label="Avg Score" value={`${avgScore || 0}`} sub={`Focus avg ${avgFocus || 0}/25`} tone={avgScore >= 75 ? 'good' : avgScore >= 60 ? 'warn' : 'bad'} icon={Sparkles} />
         <StatCard label="Reviews" value={`${reviewedTrades.length}/${closed.length}`} sub={`${reviewQueue.length} need attention`} tone={reviewQueue.length ? 'warn' : 'good'} icon={Camera} />
       </div>
+
+      <TradeCalendar trades={trades} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
         <div className="rounded-2xl p-5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
