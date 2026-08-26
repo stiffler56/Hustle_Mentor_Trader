@@ -33,7 +33,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
-import { TradeCalendar } from '../components/TradeCalendar';
 import { useTheme } from '../data/ThemeContext';
 import type { Session, Strategy, Trade } from '../data/types';
 
