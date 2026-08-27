@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { Layout } from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import TradeScorer from './pages/TradeScorer';
@@ -10,9 +10,7 @@ import PsychologyJournal from './pages/PsychologyJournal';
 import AIMentor from './pages/AIMentor';
 import BrokerIntegration from './pages/BrokerIntegration';
 import Challenge from './pages/Challenge';
-import NotionSync from './pages/NotionSync';
-import DataManager from './pages/DataManager';
-import GitHubSyncPage from './pages/GitHubSync';
+import DataHub from './pages/DataHub';
 import PatternRecognition from './pages/PatternRecognition';
 
 export const router = createBrowserRouter([
@@ -30,10 +28,11 @@ export const router = createBrowserRouter([
       { path: 'ai-mentor', Component: AIMentor },
       { path: 'broker', Component: BrokerIntegration },
       { path: 'challenge', Component: Challenge },
-      { path: 'notion', Component: NotionSync },
-      { path: 'data', Component: DataManager },
-      { path: 'github', Component: GitHubSyncPage },
+      { path: 'data-hub', Component: DataHub },
       { path: 'patterns', Component: PatternRecognition },
+      { path: 'notion', element: <Navigate to="/data-hub" replace /> },
+      { path: 'github', element: <Navigate to="/data-hub" replace /> },
+      { path: 'data', element: <Navigate to="/data-hub" replace /> },
     ],
   },
 ]);
