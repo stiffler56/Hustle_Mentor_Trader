@@ -89,3 +89,5 @@ export interface ChallengeData {
   tradeIds: string[];
   challengeNumber: number;
 }
+
+export type { DayData, MonthStats } from '../utils/calendarUtils';
