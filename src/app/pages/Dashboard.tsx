@@ -445,6 +445,7 @@ export default function Dashboard() {
         <StatCard label="Reviews" value={`${reviewedTrades.length}/${closed.length}`} sub={`${reviewQueue.length} need attention`} tone={reviewQueue.length ? 'warn' : 'good'} icon={Camera} />
       </div>
 
+      {/* Trade Calendar Heatmap */}
       <TradeCalendar trades={trades} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
