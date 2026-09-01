@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Trash2, CheckCircle2, ChevronDown, ChevronUp, Search,
   Image, Video, ExternalLink, Play, Calendar, ChevronLeft, ChevronRight, X,
@@ -882,15 +883,31 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
 export default function Journal() {
   const { trades, updateTrade, deleteTrade } = useTradesContext();
   const { colors } = useTheme();
+  const [searchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [filterResult, setFilterResult] = useState('ALL');
   const [filterSession, setFilterSession] = useState('ALL');
   const [search, setSearch] = useState('');
   const [logTarget, setLogTarget]   = useState<Trade | null>(null);
   const [editTarget, setEditTarget] = useState<Trade | null>(null);
-  const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
-  const [customStart, setCustomStart] = useState<string | null>(null);
-  const [customEnd, setCustomEnd] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>(() => {
+    return searchParams.get('date') ? 'CUSTOM' : 'ALL';
+  });
+  const [customStart, setCustomStart] = useState<string | null>(() => {
+    return searchParams.get('date') || null;
+  });
+  const [customEnd, setCustomEnd] = useState<string | null>(() => {
+    return searchParams.get('date') || null;
+  });
+
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      setDatePreset('CUSTOM');
+      setCustomStart(dateParam);
+      setCustomEnd(dateParam);
+    }
+  }, [searchParams]);
 
   const getDateBounds = () => {
     const now = new Date();
