@@ -91,3 +91,4 @@ export interface ChallengeData {
 }
 
 export type { DayData, MonthStats } from '../utils/calendarUtils';
+export type { InsightCardData } from '../components/AIInsightFeed';
