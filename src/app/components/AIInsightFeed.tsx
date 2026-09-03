@@ -267,20 +267,33 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
 
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 flex-wrap self-end sm:self-auto">
-          {(['ALL', 'discipline', 'setup', 'session', 'mistake'] as const).map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className="text-xs px-2.5 py-1 rounded-lg capitalize font-medium transition-all"
-              style={{
-                background: filter === cat ? 'rgba(245,158,11,0.15)' : colors.inputBg,
-                color: filter === cat ? WARNING : colors.textMuted,
-                border: `1px solid ${filter === cat ? 'rgba(245,158,11,0.3)' : colors.border}`,
-              }}
-            >
-              {cat === 'ALL' ? 'All Advice' : cat}
-            </button>
-          ))}
+          {(['ALL', 'discipline', 'setup', 'session', 'mistake'] as const).map(cat => {
+            const count = cat === 'ALL' ? allInsights.length : allInsights.filter(c => c.category === cat).length;
+            return (
+              <button
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className="text-xs px-2.5 py-1 rounded-lg capitalize font-medium transition-all flex items-center gap-1"
+                style={{
+                  background: filter === cat ? 'rgba(245,158,11,0.15)' : colors.inputBg,
+                  color: filter === cat ? WARNING : colors.textMuted,
+                  border: `1px solid ${filter === cat ? 'rgba(245,158,11,0.3)' : colors.border}`,
+                }}
+              >
+                <span>{cat === 'ALL' ? 'All Advice' : cat}</span>
+                {count > 0 && (
+                  <span
+                    className="text-[10px] px-1 py-0.2 rounded-full opacity-80"
+                    style={{
+                      background: filter === cat ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
           <Link
             to="/ai-mentor"
             className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all hover:opacity-80 ml-1"
