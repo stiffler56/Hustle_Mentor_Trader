@@ -17,7 +17,7 @@ import type { Trade } from '../data/types';
 import { useTheme } from '../data/ThemeContext';
 import { generateMentorReport, type MentorInsight } from '../utils/aiMentor';
 
-interface InsightCardData {
+export interface InsightCardData {
   id: string;
   category: 'discipline' | 'setup' | 'session' | 'mistake';
   title: string;
