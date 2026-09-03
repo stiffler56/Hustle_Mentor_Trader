@@ -18,6 +18,7 @@ import {
 import { useTradesContext } from '../data/TradesContext';
 import { useTheme } from '../data/ThemeContext';
 import { answerTradingQuestion, generateMentorReport } from '../utils/aiMentor';
+import { AIInsightFeed } from '../components/AIInsightFeed';
 
 type Severity = 'success' | 'warning' | 'danger' | 'info';
 
@@ -152,6 +153,8 @@ export default function AIMentor() {
             <StatusPill label="Psychology" value={`${psychologyReviewed}/${closedTrades.length}`} tone="#8b5cf6" />
           </div>
         </header>
+
+        <AIInsightFeed trades={trades} />
 
         <main className="mentor-main" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', gap: '1rem', alignItems: 'start' }}>
           <section
