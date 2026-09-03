@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { TradeCalendar } from '../components/TradeCalendar';
+import { AIInsightFeed } from '../components/AIInsightFeed';
 import { useTheme } from '../data/ThemeContext';
 import type { Session, Strategy, Trade } from '../data/types';
 
@@ -447,6 +448,9 @@ export default function Dashboard() {
 
       {/* Trade Calendar Heatmap */}
       <TradeCalendar trades={trades} />
+
+      {/* AI Behavioral Insights Feed */}
+      <AIInsightFeed trades={trades} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
         <div className="rounded-2xl p-5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
