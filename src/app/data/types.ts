@@ -66,6 +66,7 @@ export interface Trade {
   screenshotAfter2?: string;  // base64
   reviewVideoUrl?: string;    // YouTube / Loom / TradingView replay URL
   isChallengedTrade?: boolean;
+  accountId?: string; // Prop firm account ID if assigned
 
   // Elevation features: stored in the same trade object so cloud sync and GitHub sync preserve the data.
   psychologicalMetrics?: PsychologicalMetrics;
@@ -92,3 +93,10 @@ export interface ChallengeData {
 
 export type { DayData, MonthStats } from '../utils/calendarUtils';
 export type { InsightCardData } from '../components/AIInsightFeed';
+export type {
+  AccountStatus,
+  AccountPhase,
+  PropAccount,
+  PropFirmPreset,
+} from './accountTypes';
+export { PROP_FIRM_PRESETS } from './accountTypes';
