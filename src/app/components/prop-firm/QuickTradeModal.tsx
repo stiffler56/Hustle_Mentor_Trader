@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, Plus, TrendingUp, TrendingDown } from 'lucide-react';
-import type { PropAccount } from '../../data/accountTypes';
+import { X } from 'lucide-react';
+import type { Account } from '../../data/accountTypes';
 import type { Trade, Session, OrderType, Strategy, TradeResult } from '../../data/types';
 import { useTradesContext } from '../../data/TradesContext';
 
 interface QuickTradeModalProps {
-  account: PropAccount;
+  account: Account;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -77,7 +77,7 @@ export const QuickTradeModal: React.FC<QuickTradeModalProps> = ({
           <div>
             <h3 className="text-base font-bold text-slate-900">Log Account Trade</h3>
             <p className="text-xs text-slate-500 font-medium">
-              Assigned to: <span className="text-blue-600 font-bold">{account.firmName} ({account.accountNumber})</span>
+              Assigned to: <span className="text-blue-600 font-bold">{account.name} ({account.accountNumber})</span>
             </p>
           </div>
           <button

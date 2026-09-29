@@ -1,10 +1,10 @@
 import React from 'react';
 import { ShieldCheck, AlertTriangle, AlertOctagon, Clock } from 'lucide-react';
-import type { PropAccount } from '../../data/accountTypes';
+import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
 
 interface DailyDrawdownTrackerProps {
-  account: PropAccount;
+  account: Account;
   trades: Trade[];
 }
 
@@ -12,15 +12,16 @@ export const DailyDrawdownTracker: React.FC<DailyDrawdownTrackerProps> = ({ acco
   const todayStr = new Date().toISOString().split('T')[0];
   const todayTrades = trades.filter(t => t.date === todayStr && t.status === 'CLOSED');
 
-  const todayPnl = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const todayPnl = account.todayPnl !== undefined ? account.todayPnl : todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
   const todayWins = todayTrades.filter(t => t.result === 'WIN').length;
   const todayLosses = todayTrades.filter(t => t.result === 'LOSS').length;
 
   const currentLoss = todayPnl < 0 ? Math.abs(todayPnl) : 0;
   const currentLossPct = (currentLoss / account.initialBalance) * 100;
-  const dailyLimitDollar = account.initialBalance * (account.dailyDrawdownLimitPct / 100);
+  const dailyLimitPct = account.propDetails?.dailyDrawdownLimitPct || 5;
+  const dailyLimitDollar = account.initialBalance * (dailyLimitPct / 100);
   const bufferDollar = Math.max(0, dailyLimitDollar - currentLoss);
-  const bufferPct = Math.max(0, account.dailyDrawdownLimitPct - currentLossPct);
+  const bufferPct = Math.max(0, dailyLimitPct - currentLossPct);
 
   const usedPctOfLimit = Math.min(100, (currentLoss / dailyLimitDollar) * 100);
   const isBreached = currentLoss >= dailyLimitDollar;
@@ -50,7 +51,7 @@ export const DailyDrawdownTracker: React.FC<DailyDrawdownTrackerProps> = ({ acco
             )}
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Daily Loss Limit Monitor</h3>
+            <h3 className="text-sm font-bold text-slate-900">Daily Risk & Drawdown Monitor</h3>
             <p className="text-xs text-slate-500 font-medium">
               Resets every trading day at 00:00 UTC / 17:00 EST
             </p>
@@ -98,7 +99,7 @@ export const DailyDrawdownTracker: React.FC<DailyDrawdownTrackerProps> = ({ acco
               -${currentLoss.toFixed(2)}
             </span>
             <span className="text-xs font-medium text-slate-500">
-              / max -${dailyLimitDollar.toLocaleString()} ({account.dailyDrawdownLimitPct}%)
+              / max -${dailyLimitDollar.toLocaleString()} ({dailyLimitPct}%)
             </span>
           </div>
           <span className="text-[11px] font-medium text-slate-500 mt-1 block">

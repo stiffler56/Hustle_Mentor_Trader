@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Plus, ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Minus, Link2 } from 'lucide-react';
-import type { PropAccount } from '../../data/accountTypes';
+import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
 import { useTradesContext } from '../../data/TradesContext';
 
 interface AccountTradesTableProps {
-  account: PropAccount;
+  account: Account;
   trades: Trade[];
   onOpenQuickTrade: () => void;
 }
@@ -53,7 +53,7 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
         <div>
           <h3 className="text-sm font-bold text-slate-900">Account Trades Log</h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Trades executed under {account.firmName} ({account.accountNumber})
+            Trades executed under {account.name} ({account.accountNumber})
           </p>
         </div>
 
@@ -107,15 +107,15 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
           <span className="text-[10px] font-medium text-slate-500 block mt-0.5">Risk to Reward</span>
         </div>
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Account Size</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Initial Balance</span>
           <span className="text-xl font-extrabold text-blue-600 font-mono">
-            ${account.accountSize.toLocaleString()}
+            ${account.initialBalance.toLocaleString()}
           </span>
-          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">{account.modelType}</span>
+          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">{account.platform} • {account.provider}</span>
         </div>
       </div>
 
-      {/* Link Trades Modal / Drawer */}
+      {/* Link Trades Drawer */}
       {showLinkModal && (
         <div className="p-4 mb-5 rounded-2xl bg-blue-50/70 border border-blue-200">
           <div className="flex items-center justify-between mb-3">
@@ -180,7 +180,7 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
       {/* Trades Table */}
       {filteredTrades.length === 0 ? (
         <div className="text-center py-12 rounded-xl bg-slate-50 border border-slate-200">
-          <p className="text-sm font-semibold text-slate-700 mb-1">No trades logged for this prop account yet</p>
+          <p className="text-sm font-semibold text-slate-700 mb-1">No trades logged for this account yet</p>
           <p className="text-xs text-slate-500 mb-4 max-w-sm mx-auto font-medium">
             Log your simulation or evaluation trades here to automatically calculate drawdown and profit metrics.
           </p>

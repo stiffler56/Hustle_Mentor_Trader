@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { X, Edit3, Trash2, RefreshCw, Award } from 'lucide-react';
-import type { PropAccount, AccountPhase, AccountStatus } from '../../data/accountTypes';
+import type { Account, AccountStatus, PropPhase } from '../../data/accountTypes';
 
 interface EditAccountModalProps {
-  account: PropAccount;
+  account: Account;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (id: string, updates: Partial<PropAccount>) => void;
+  onUpdate: (id: string, updates: Partial<Account>) => void;
   onDelete: (id: string) => void;
   onReset: (id: string) => void;
   onAdvancePhase: (id: string) => void;
@@ -21,34 +21,49 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   onReset,
   onAdvancePhase,
 }) => {
+  const [name, setName] = useState(account.name);
   const [accountNumber, setAccountNumber] = useState(account.accountNumber);
-  const [firmName, setFirmName] = useState(account.firmName);
+  const [provider, setProvider] = useState(account.provider);
   const [currentBalance, setCurrentBalance] = useState(account.currentBalance);
-  const [phase, setPhase] = useState<AccountPhase>(account.phase);
   const [status, setStatus] = useState<AccountStatus>(account.status);
-  const [dailyDrawdownLimitPct, setDailyDrawdownLimitPct] = useState(account.dailyDrawdownLimitPct);
-  const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState(account.maxDrawdownLimitPct);
-  const [profitTargetPct, setProfitTargetPct] = useState(account.profitTargetPct);
-  const [currentDailyLoss, setCurrentDailyLoss] = useState(account.currentDailyLoss);
-  const [currentMaxDrawdown, setCurrentMaxDrawdown] = useState(account.currentMaxDrawdown);
+  const [serverType, setServerType] = useState(account.serverType || '');
+  const [phase, setPhase] = useState<PropPhase>(account.propDetails?.phase || 'Phase 1');
+  const [dailyDrawdownLimitPct, setDailyDrawdownLimitPct] = useState(account.propDetails?.dailyDrawdownLimitPct || 5);
+  const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState(account.propDetails?.maxDrawdownLimitPct || 10);
+  const [profitTargetPct, setProfitTargetPct] = useState(account.propDetails?.profitTargetPct || 8);
   const [notes, setNotes] = useState(account.notes || '');
 
   if (!isOpen) return null;
 
+  const isProp = account.category.startsWith('prop');
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdate(account.id, {
-      accountNumber,
-      firmName,
-      currentBalance: Number(currentBalance),
+
+    const updatedPropDetails = isProp ? {
+      ...(account.propDetails || {
+        modelType: 'Evaluation',
+        phase: 'Phase 1',
+        profitTargetPct: 8,
+        dailyDrawdownLimitPct: 5,
+        maxDrawdownLimitPct: 10,
+      }),
       phase,
-      status,
+      profitTargetPct: Number(profitTargetPct),
       dailyDrawdownLimitPct: Number(dailyDrawdownLimitPct),
       maxDrawdownLimitPct: Number(maxDrawdownLimitPct),
-      profitTargetPct: Number(profitTargetPct),
-      currentDailyLoss: Number(currentDailyLoss),
-      currentMaxDrawdown: Number(currentMaxDrawdown),
-      isBreached: status === 'Not Passed',
+    } : undefined;
+
+    onUpdate(account.id, {
+      name,
+      accountNumber,
+      provider,
+      serverType,
+      currentBalance: Number(currentBalance),
+      currentEquity: Number(currentBalance),
+      status,
+      propDetails: updatedPropDetails,
+      isBreached: status === 'Breached' || status === 'Not Passed',
       notes,
     });
     onClose();
@@ -69,8 +84,8 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
               <Edit3 size={18} className="text-blue-600" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Manage & Rename Account</h3>
-              <p className="text-xs text-slate-500 font-medium">{account.firmName} ({account.accountNumber})</p>
+              <h3 className="text-base font-bold text-slate-900">Manage Account</h3>
+              <p className="text-xs text-slate-500 font-medium">{account.name} ({account.accountNumber})</p>
             </div>
           </div>
           <button
@@ -81,19 +96,22 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
           </button>
         </div>
 
-        {/* Quick Phase Actions */}
+        {/* Quick Phase & Reset Actions */}
         <div className="flex flex-wrap items-center gap-2 mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-          <button
-            type="button"
-            onClick={() => {
-              onAdvancePhase(account.id);
-              onClose();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-          >
-            <Award size={13} />
-            <span>Advance Phase</span>
-          </button>
+          {isProp && (
+            <button
+              type="button"
+              onClick={() => {
+                onAdvancePhase(account.id);
+                onClose();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+            >
+              <Award size={13} />
+              <span>Advance Phase</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -107,10 +125,11 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
             <RefreshCw size={13} />
             <span>Reset Balance</span>
           </button>
+
           <button
             type="button"
             onClick={() => {
-              if (window.confirm('Delete this prop account?')) {
+              if (window.confirm('Delete this account permanently?')) {
                 onDelete(account.id);
                 onClose();
               }
@@ -126,13 +145,13 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
-                Firm / Label Name
+                Account Name / Label
               </label>
               <input
                 type="text"
                 required
-                value={firmName}
-                onChange={e => setFirmName(e.target.value)}
+                value={name}
+                onChange={e => setName(e.target.value)}
                 className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:border-blue-600 outline-none"
               />
             </div>
@@ -164,24 +183,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
                 className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-blue-600 font-mono font-bold focus:border-blue-600 outline-none"
               />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
-                Evaluation Phase
-              </label>
-              <select
-                value={phase}
-                onChange={e => setPhase(e.target.value as AccountPhase)}
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:border-blue-600 outline-none"
-              >
-                <option value="Phase 1">Phase 1</option>
-                <option value="Phase 2">Phase 2</option>
-                <option value="Master">Master</option>
-                <option value="Instant">Instant</option>
-              </select>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
                 Account Status
@@ -192,49 +194,74 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
                 className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:border-blue-600 outline-none"
               >
                 <option value="Ongoing">Ongoing</option>
+                <option value="Active">Active</option>
                 <option value="Passed">Passed</option>
-                <option value="Not Passed">Not Passed / Breached</option>
+                <option value="Not Passed">Not Passed</option>
+                <option value="Breached">Breached</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
-                Profit Target (%)
-              </label>
-              <input
-                type="number"
-                step="0.5"
-                value={profitTargetPct}
-                onChange={e => setProfitTargetPct(Number(e.target.value))}
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-blue-600 font-bold focus:border-blue-600 outline-none"
-              />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
-                Today's Loss ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={currentDailyLoss}
-                onChange={e => setCurrentDailyLoss(Number(e.target.value))}
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:border-blue-600 outline-none"
-              />
+          {isProp && (
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-700 block">
+                Prop Risk Rules & Phase
+              </span>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Phase
+                  </label>
+                  <select
+                    value={phase}
+                    onChange={e => setPhase(e.target.value as PropPhase)}
+                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-white border border-slate-200 text-slate-900 font-bold"
+                  >
+                    <option value="Phase 1">Phase 1</option>
+                    <option value="Phase 2">Phase 2</option>
+                    <option value="Master">Master</option>
+                    <option value="Funded">Funded</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Profit Target (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={profitTargetPct}
+                    onChange={e => setProfitTargetPct(Number(e.target.value))}
+                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-white border border-slate-200 text-blue-600 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Daily DD (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={dailyDrawdownLimitPct}
+                    onChange={e => setDailyDrawdownLimitPct(Number(e.target.value))}
+                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-white border border-slate-200 text-blue-600 font-bold"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
-                Max DD ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={currentMaxDrawdown}
-                onChange={e => setCurrentMaxDrawdown(Number(e.target.value))}
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:border-blue-600 outline-none"
-              />
-            </div>
+          )}
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
+              Server / Platform Details
+            </label>
+            <input
+              type="text"
+              value={serverType}
+              onChange={e => setServerType(e.target.value)}
+              placeholder="e.g. Raw Spread Demo / Live Server"
+              className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-blue-600 outline-none"
+            />
           </div>
 
           <div>
