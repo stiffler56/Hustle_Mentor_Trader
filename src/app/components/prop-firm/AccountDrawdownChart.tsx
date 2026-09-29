@@ -8,11 +8,11 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
-import type { PropAccount } from '../../data/accountTypes';
+import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
 
 interface AccountDrawdownChartProps {
-  account: PropAccount;
+  account: Account;
   trades: Trade[];
 }
 
@@ -24,8 +24,8 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
 
     if (sortedTrades.length === 0) {
       return [
-        { label: 'Start', balance: account.initialBalance, equity: account.initialBalance, pnl: 0, date: account.createdAt },
-        { label: 'Current', balance: account.currentBalance, equity: account.currentBalance, pnl: account.pnl, date: 'Now' },
+        { label: 'Start', balance: account.initialBalance, equity: account.initialBalance, pnl: 0, date: account.startDate },
+        { label: 'Current', balance: account.currentBalance, equity: account.currentEquity || account.currentBalance, pnl: account.totalPnl, date: 'Now' },
       ];
     }
 
@@ -36,7 +36,7 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
         balance: account.initialBalance,
         equity: account.initialBalance,
         pnl: 0,
-        date: account.createdAt,
+        date: account.startDate,
       },
     ];
 
@@ -55,15 +55,17 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
   }, [account, trades]);
 
   const initialBalance = account.initialBalance;
-  const targetFloor = initialBalance * (1 - account.maxDrawdownLimitPct / 100);
-  const profitTarget = account.profitTargetPct > 0 ? initialBalance * (1 + account.profitTargetPct / 100) : null;
+  const isProp = account.category.startsWith('prop');
+  const maxDdPct = account.propDetails?.maxDrawdownLimitPct || 10;
+  const profitTargetPct = account.propDetails?.profitTargetPct || 0;
 
-  const minBal = Math.min(...chartData.map(d => d.balance), targetFloor);
+  const targetFloor = isProp ? initialBalance * (1 - maxDdPct / 100) : initialBalance * 0.9;
+  const profitTarget = isProp && profitTargetPct > 0 ? initialBalance * (1 + profitTargetPct / 100) : null;
+
+  const minBal = Math.min(...chartData.map(d => d.balance), isProp ? targetFloor : initialBalance * 0.95);
   const maxBal = Math.max(...chartData.map(d => d.balance), profitTarget || initialBalance * 1.05);
   const yMin = Math.floor(minBal * 0.98);
   const yMax = Math.ceil(maxBal * 1.02);
-
-  const isNetProfit = account.currentBalance >= account.initialBalance;
 
   return (
     <div
@@ -76,7 +78,9 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
         <div>
           <h3 className="text-sm font-bold text-slate-900">Balance & Equity Curve</h3>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Account performance relative to starting balance (${initialBalance.toLocaleString()}), profit target, and drawdown floor
+            Account performance relative to starting capital (${initialBalance.toLocaleString()})
+            {profitTarget ? `, profit target ($${profitTarget.toLocaleString()})` : ''}
+            {isProp ? `, and drawdown floor ($${targetFloor.toLocaleString()})` : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
@@ -90,10 +94,12 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
               <span>Target: ${profitTarget.toLocaleString()}</span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
-            <div className="w-3 h-0.5 bg-red-600" />
-            <span>Floor: ${targetFloor.toLocaleString()}</span>
-          </div>
+          {isProp && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+              <div className="w-3 h-0.5 bg-red-600" />
+              <span>Floor: ${targetFloor.toLocaleString()}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -102,7 +108,7 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="blueBalanceGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
               </linearGradient>
             </defs>
@@ -133,7 +139,7 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
                 fontWeight: 600,
               }}
               formatter={(val: any, name: any) => {
-                if (name === 'balance') return [`$${Number(val).toLocaleString()}`, 'Balance'];
+                if (name === 'balance') return [`$${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Balance'];
                 return [val, name];
               }}
               labelFormatter={(label, payload) => {
@@ -171,17 +177,19 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
             )}
 
             {/* Max Drawdown Floor Line */}
-            <ReferenceLine
-              y={targetFloor}
-              stroke="#dc2626"
-              strokeDasharray="4 4"
-              label={{
-                value: `Max Loss Floor: $${targetFloor.toLocaleString()}`,
-                fill: '#dc2626',
-                fontSize: 10,
-                position: 'insideBottomRight',
-              }}
-            />
+            {isProp && (
+              <ReferenceLine
+                y={targetFloor}
+                stroke="#dc2626"
+                strokeDasharray="4 4"
+                label={{
+                  value: `Max Loss Floor: $${targetFloor.toLocaleString()}`,
+                  fill: '#dc2626',
+                  fontSize: 10,
+                  position: 'insideBottomRight',
+                }}
+              />
+            )}
 
             <Area
               type="monotone"

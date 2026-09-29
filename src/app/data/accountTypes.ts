@@ -1,112 +1,145 @@
-export type AccountStatus = 'Ongoing' | 'Passed' | 'Not Passed';
-export type AccountPhase = 'Phase 1' | 'Phase 2' | 'Master' | 'Instant';
+export type AccountCategory = 'prop_evaluation' | 'prop_funded' | 'broker_live' | 'broker_demo';
+export type AccountStatus = 'Ongoing' | 'Passed' | 'Not Passed' | 'Active' | 'Breached';
+export type TradingPlatform = 'MetaTrader 5' | 'MetaTrader 4' | 'cTrader' | 'TradeLocker' | 'TradingView' | 'Other';
+export type PropPhase = 'Phase 1' | 'Phase 2' | 'Master' | 'Funded';
 
-export interface PropAccount {
-  id: string;
-  accountNumber: string; // e.g., "#20823275"
-  firmName: string; // e.g., "FundingPips", "FTMO", "Custom"
-  accountSize: number; // e.g., 50000, 10000, etc.
-  currentBalance: number;
-  initialBalance: number;
-  modelType: string; // e.g., "2 Step Standard"
-  phase: AccountPhase;
-  status: AccountStatus;
+export interface PropDetails {
+  modelType: string; // e.g. "2 Step Standard", "1 Step"
+  phase: PropPhase;
   profitTargetPct: number; // e.g., 8%
-  currentProfitPct: number;
-  pnl: number;
   dailyDrawdownLimitPct: number; // e.g., 5%
   maxDrawdownLimitPct: number; // e.g., 10%
-  currentDailyLoss: number;
-  currentMaxDrawdown: number;
-  createdAt: string;
-  isBreached?: boolean;
-
-  // Additional detail fields
-  platform?: string; // e.g. "cTrader", "Match-Trader", "MetaTrader 5"
-  minTradingDays?: number; // e.g. 0, 3, 5
-  consistencyRulePct?: number; // e.g. 33 (max % profit in single day)
-  profitSplitPct?: number; // e.g. 80, 90 (for Master/Funded)
-  notes?: string;
-  lastUpdated?: string;
+  minTradingDays?: number;
+  tradingDaysLogged?: number;
+  consistencyRulePct?: number; // e.g., 33%
+  profitSplitPct?: number; // e.g., 85%
+  currentDailyLoss?: number;
+  currentMaxDrawdown?: number;
 }
 
-export interface PropFirmPreset {
+export interface ConsistencyMetrics {
+  riskReward: number;
+  stopLossUsagePct: number;
+  winRate: number;
+}
+
+export interface Account {
+  id: string;
+  accountNumber: string; // e.g., "#20823275"
+  name: string; // e.g., "FundingPips $50k" or "IC Markets Raw ECN"
+  category: AccountCategory;
+  provider: string; // e.g., "FundingPips", "FTMO", "IC Markets", "Pepperstone"
+  platform: TradingPlatform;
+  serverType?: string; // e.g., "Swap Free", "Standard", "Raw Spread"
+  initialBalance: number;
+  currentBalance: number;
+  currentEquity: number;
+  currency: string; // e.g., "USD"
+  status: AccountStatus;
+  startDate: string;
+
+  // Prop-firm specific rules (optional for broker accounts)
+  propDetails?: PropDetails;
+
+  // Metrics
+  todayPnl: number;
+  totalPnl: number;
+  consistencyScore?: number; // e.g., 2.08
+  consistencyMetrics?: ConsistencyMetrics;
+  notes?: string;
+  isBreached?: boolean;
+}
+
+// Backward compatibility aliases
+export type PropAccount = Account;
+export type AccountPhase = PropPhase;
+
+export interface ProviderPreset {
   id: string;
   name: string;
-  modelType: string;
-  phases: {
-    phase: AccountPhase;
-    profitTargetPct: number;
-    dailyDrawdownLimitPct: number;
-    maxDrawdownLimitPct: number;
-    minTradingDays: number;
-  }[];
+  category: AccountCategory;
+  defaultPlatform: TradingPlatform;
+  platformOptions: TradingPlatform[];
+  serverTypes: string[];
   defaultSizes: number[];
-  platformOptions: string[];
+  propConfig?: {
+    modelType: string;
+    phases: {
+      phase: PropPhase;
+      profitTargetPct: number;
+      dailyDrawdownLimitPct: number;
+      maxDrawdownLimitPct: number;
+      minTradingDays: number;
+    }[];
+  };
   description: string;
 }
 
-export const PROP_FIRM_PRESETS: PropFirmPreset[] = [
+export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'fundingpips-2step',
     name: 'FundingPips',
-    modelType: '2-Step Evaluation',
-    phases: [
-      { phase: 'Phase 1', profitTargetPct: 8, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-      { phase: 'Phase 2', profitTargetPct: 5, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-      { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-    ],
+    category: 'prop_evaluation',
+    defaultPlatform: 'cTrader',
+    platformOptions: ['cTrader', 'TradeLocker', 'MetaTrader 5'],
+    serverTypes: ['FundingPips-Live', 'FundingPips-Demo'],
     defaultSizes: [5000, 10000, 25000, 50000, 100000],
-    platformOptions: ['cTrader', 'Match-Trader', 'TradeLocker'],
-    description: 'FundingPips 2-step evaluation: 8% Student, 5% Practitioner, 10% max static loss, 5% daily loss.',
-  },
-  {
-    id: 'fundingpips-1step',
-    name: 'FundingPips',
-    modelType: '1-Step Evaluation',
-    phases: [
-      { phase: 'Phase 1', profitTargetPct: 12, dailyDrawdownLimitPct: 3, maxDrawdownLimitPct: 6, minTradingDays: 0 },
-      { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 3, maxDrawdownLimitPct: 6, minTradingDays: 0 },
-    ],
-    defaultSizes: [5000, 10000, 25000, 50000, 100000],
-    platformOptions: ['cTrader', 'Match-Trader'],
-    description: 'FundingPips 1-step challenge: 12% profit target with 6% trailing drawdown and 3% daily loss.',
+    propConfig: {
+      modelType: '2-Step Evaluation',
+      phases: [
+        { phase: 'Phase 1', profitTargetPct: 8, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
+        { phase: 'Phase 2', profitTargetPct: 5, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
+        { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
+      ],
+    },
+    description: 'FundingPips 2-step: 8% Phase 1, 5% Phase 2, 5% daily loss, 10% max static drawdown.',
   },
   {
     id: 'ftmo-standard',
     name: 'FTMO',
-    modelType: '2-Step Challenge',
-    phases: [
-      { phase: 'Phase 1', profitTargetPct: 10, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 4 },
-      { phase: 'Phase 2', profitTargetPct: 5, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 4 },
-      { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-    ],
+    category: 'prop_evaluation',
+    defaultPlatform: 'MetaTrader 5',
+    platformOptions: ['MetaTrader 5', 'MetaTrader 4', 'cTrader'],
+    serverTypes: ['FTMO-Server', 'FTMO-Demo'],
     defaultSizes: [10000, 25000, 50000, 100000, 200000],
-    platformOptions: ['MetaTrader 5', 'cTrader', 'DXtrade'],
-    description: 'FTMO Challenge: 10% Phase 1, 5% Phase 2, 5% max daily loss, 10% max total loss.',
+    propConfig: {
+      modelType: '2-Step Challenge',
+      phases: [
+        { phase: 'Phase 1', profitTargetPct: 10, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 4 },
+        { phase: 'Phase 2', profitTargetPct: 5, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 4 },
+        { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
+      ],
+    },
+    description: 'FTMO Challenge: 10% Phase 1, 5% Phase 2, 5% max daily, 10% max loss, 4 minimum trading days.',
   },
   {
-    id: 'fundednext-stellar',
-    name: 'FundedNext',
-    modelType: 'Stellar 2-Step',
-    phases: [
-      { phase: 'Phase 1', profitTargetPct: 8, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 5 },
-      { phase: 'Phase 2', profitTargetPct: 5, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 5 },
-      { phase: 'Master', profitTargetPct: 0, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-    ],
-    defaultSizes: [6000, 15000, 25000, 50000, 100000, 200000],
-    platformOptions: ['MetaTrader 5', 'cTrader'],
-    description: 'FundedNext Stellar 2-Step: Balance-based daily drawdown, 8% and 5% targets.',
+    id: 'ic-markets-live',
+    name: 'IC Markets',
+    category: 'broker_live',
+    defaultPlatform: 'cTrader',
+    platformOptions: ['cTrader', 'MetaTrader 5', 'MetaTrader 4', 'TradingView'],
+    serverTypes: ['Raw Spread', 'Standard', 'cTrader ECN'],
+    defaultSizes: [1000, 5000, 10000, 25000, 50000],
+    description: 'IC Markets Raw Spread broker account with true ECN spreads and ultra-fast execution.',
   },
   {
-    id: 'custom',
-    name: 'Custom Prop Firm',
-    modelType: 'Custom Model',
-    phases: [
-      { phase: 'Phase 1', profitTargetPct: 8, dailyDrawdownLimitPct: 5, maxDrawdownLimitPct: 10, minTradingDays: 0 },
-    ],
-    defaultSizes: [10000, 25000, 50000, 100000, 200000],
-    platformOptions: ['cTrader', 'MetaTrader 5', 'TradingView', 'Custom'],
-    description: 'Custom account with configurable profit targets and risk limits.',
+    id: 'pepperstone-live',
+    name: 'Pepperstone',
+    category: 'broker_live',
+    defaultPlatform: 'TradingView',
+    platformOptions: ['TradingView', 'cTrader', 'MetaTrader 5'],
+    serverTypes: ['Razor ECN', 'Standard'],
+    defaultSizes: [1000, 2500, 5000, 10000, 20000],
+    description: 'Pepperstone Razor account with TradingView charting and institutional liquidity.',
+  },
+  {
+    id: 'custom-account',
+    name: 'Custom Account',
+    category: 'broker_live',
+    defaultPlatform: 'MetaTrader 5',
+    platformOptions: ['MetaTrader 5', 'MetaTrader 4', 'cTrader', 'TradeLocker', 'TradingView', 'Other'],
+    serverTypes: ['Standard', 'Live Server', 'Demo Server'],
+    defaultSizes: [5000, 10000, 25000, 50000, 100000],
+    description: 'Custom Live, Demo, or Prop account with configurable leverage and balance.',
   },
 ];

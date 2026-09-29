@@ -94,9 +94,15 @@ export interface ChallengeData {
 export type { DayData, MonthStats } from '../utils/calendarUtils';
 export type { InsightCardData } from '../components/AIInsightFeed';
 export type {
+  Account,
+  AccountCategory,
   AccountStatus,
-  AccountPhase,
+  TradingPlatform,
+  PropPhase,
+  PropDetails,
+  ConsistencyMetrics,
+  ProviderPreset,
   PropAccount,
-  PropFirmPreset,
+  AccountPhase,
 } from './accountTypes';
-export { PROP_FIRM_PRESETS } from './accountTypes';
+export { PROVIDER_PRESETS } from './accountTypes';

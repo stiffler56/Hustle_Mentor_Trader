@@ -31,7 +31,7 @@ import { useTheme } from '../data/ThemeContext';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/prop-firm', label: 'Funding Accounts', icon: Building2 },
+  { to: '/accounts', label: 'Accounts', icon: Building2 },
   { to: '/scorer', label: 'Trade Scorer', icon: Zap },
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -200,7 +200,7 @@ export function Layout() {
               >
                 <Icon size={16} />
                 <span>{label}</span>
-                {label === 'Funding Accounts' && accounts.length > 0 && (
+                {label === 'Accounts' && accounts.length > 0 && (
                   <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(37,99,235,0.15)', color: '#2563eb', border: '1px solid rgba(37,99,235,0.3)' }}>
                     {accounts.length}
                   </span>
