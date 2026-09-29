@@ -12,6 +12,7 @@ import BrokerIntegration from './pages/BrokerIntegration';
 import Challenge from './pages/Challenge';
 import DataHub from './pages/DataHub';
 import PatternRecognition from './pages/PatternRecognition';
+import AccountsPage from './pages/AccountsPage';
 import PropFirmDashboard from './pages/PropFirmDashboard';
 
 export const router = createBrowserRouter([
@@ -20,9 +21,9 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: Dashboard },
-      { path: 'prop-firm', Component: PropFirmDashboard },
-      { path: 'prop-accounts', Component: PropFirmDashboard },
-      { path: 'accounts', Component: PropFirmDashboard },
+      { path: 'prop-firm', Component: AccountsPage },
+      { path: 'prop-accounts', Component: AccountsPage },
+      { path: 'accounts', Component: AccountsPage },
       { path: 'scorer', Component: TradeScorer },
       { path: 'journal', Component: Journal },
       { path: 'analytics', Component: Analytics },
