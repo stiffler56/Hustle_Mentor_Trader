@@ -28,15 +28,17 @@ export interface InsightCardData {
   evidence?: string;
 }
 
-const PROFIT = '#10b981';
-const LOSS = '#f87171';
-const WARNING = '#f59e0b';
-const INFO = '#60a5fa';
+const PROFIT = '#10B981';
+const LOSS = '#EF4444';
+const ACCENT_BLUE = '#2563EB';
+const ACCENT_LIGHT = '#3B82F6';
+const INFO = '#60A5FA';
+const WARNING = '#F59E0B';
 
 function getSeverityColor(sev: 'success' | 'warning' | 'danger' | 'info'): string {
   if (sev === 'success') return PROFIT;
   if (sev === 'danger') return LOSS;
-  if (sev === 'warning') return WARNING;
+  if (sev === 'warning') return ACCENT_LIGHT;
   return INFO;
 }
 
@@ -98,85 +100,67 @@ export function generateInsightFeed(trades: Trade[]): InsightCardData[] {
       explanation: `You have won ${bestSession.wins} of ${bestSession.count} trades (${bestSession.winRate}% win rate) producing +$${Math.round(bestSession.pnl)} in net gains.`,
       action: `Focus your daily risk budget during ${bestSession.session} and avoid forcing entries outside this window.`,
       severity: 'success',
-      metric: `+${Math.round(bestSession.pnl)}$`,
-      evidence: `${bestSession.winRate}% WR`,
+      metric: `${bestSession.winRate}% WR`,
+      evidence: `${bestSession.count} trades logged`,
     });
   }
 
-  // 2. Confluence & Setup Quality Insight
-  const highConfluence = closed.filter(t => t.confluences >= 3);
-  const lowConfluence = closed.filter(t => t.confluences < 3);
-
-  if (highConfluence.length >= 2) {
-    const highWins = highConfluence.filter(t => t.result === 'WIN').length;
-    const highWR = Math.round((highWins / highConfluence.length) * 100);
-    const lowWins = lowConfluence.filter(t => t.result === 'WIN').length;
-    const lowWR = lowConfluence.length ? Math.round((lowWins / lowConfluence.length) * 100) : 0;
-
-    if (highWR > lowWR) {
-      cards.push({
-        id: 'confluence-rule',
-        category: 'setup',
-        title: 'You win significantly more when confluence is 3+',
-        explanation: `Setups with 3+ confluence factors win at ${highWR}% compared to ${lowWR}% on lower confluence trades.`,
-        action: 'Require at least 3 independent technical reasons (e.g. FVG + OB + Liquidity sweep) before triggering.',
-        severity: 'success',
-        metric: `${highWR}% vs ${lowWR}%`,
-        evidence: `${highConfluence.length} high-confluence trades`,
-      });
-    }
+  // 2. Pre-Trade Scorer Adherence
+  const lowScoreTrades = closed.filter(t => t.score < 65);
+  const lowScoreLosses = lowScoreTrades.filter(t => t.result === 'LOSS').length;
+  if (lowScoreTrades.length >= 2) {
+    const lossPct = Math.round((lowScoreLosses / lowScoreTrades.length) * 100);
+    cards.push({
+      id: 'score-discipline',
+      category: 'discipline',
+      title: 'Low-quality setups are costing you edge',
+      explanation: `${lowScoreTrades.length} trades were taken with a score below 65, resulting in a ${lossPct}% loss rate.`,
+      action: 'Do not take trades scored under 65. If scored 65-74, trade half risk.',
+      severity: 'danger',
+      metric: `${lowScoreTrades.length} low-score entries`,
+      evidence: `Scorer audit (${lowScoreLosses} losses)`,
+    });
   }
 
-  // 3. Best Setup / Playbook Edge
-  const strategies = ['D1/H4 FVG', 'Liquidity', 'Order Block', 'ICT Concept', 'Support/Resistance'] as const;
-  const stratStats = strategies.map(strategy => {
-    const sTrades = closed.filter(t => t.strategy === strategy);
-    const wins = sTrades.filter(t => t.result === 'WIN').length;
-    const pnl = sTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-    const winRate = sTrades.length ? Math.round((wins / sTrades.length) * 100) : 0;
-    return { strategy, count: sTrades.length, wins, pnl, winRate };
+  // 3. Strongest Strategy Edge
+  const strategies = ['ICT Silver Bullet', 'FVG + OB', 'London Breakout', 'Asian Range Sweep', 'Trend Continuation'] as const;
+  const stratStats = strategies.map(strat => {
+    const sTrades = closed.filter(t => t.strategy === strat);
+    const sWins = sTrades.filter(t => t.result === 'WIN').length;
+    const sPnl = sTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const winRate = sTrades.length ? Math.round((sWins / sTrades.length) * 100) : 0;
+    return { strat, count: sTrades.length, wins: sWins, pnl: sPnl, winRate };
   }).filter(s => s.count >= 2);
 
   const bestStrat = [...stratStats].sort((a, b) => b.pnl - a.pnl || b.winRate - a.winRate)[0];
   if (bestStrat && bestStrat.pnl > 0) {
     cards.push({
-      id: `setup-edge-${bestStrat.strategy}`,
+      id: `strat-edge-${bestStrat.strat}`,
       category: 'setup',
-      title: `Your best setup is ${bestStrat.strategy}`,
-      explanation: `${bestStrat.count} closed trades generated +$${Math.round(bestStrat.pnl)} with a ${bestStrat.winRate}% strike rate.`,
-      action: `Prioritize ${bestStrat.strategy} setups and reject trades that do not fit this playbook.`,
+      title: `${bestStrat.strat} is your highest EV playbook`,
+      explanation: `Yielded +$${Math.round(bestStrat.pnl)} across ${bestStrat.count} setups with a ${bestStrat.winRate}% win rate.`,
+      action: `Prioritize ${bestStrat.strat} setups as your primary daily playbook.`,
       severity: 'success',
-      metric: `+${Math.round(bestStrat.pnl)}$ P&L`,
-      evidence: `${bestStrat.count} trades`,
+      metric: `+$${Math.round(bestStrat.pnl)} EV`,
+      evidence: `${bestStrat.count} closed setups`,
     });
   }
 
-  // 4. Discipline & Daily Drawdown / Consecutive Loss rule
-  // Check multi-loss days from date groupings
-  const dateMap = new Map<string, Trade[]>();
-  closed.forEach(t => {
-    const d = t.date || (t.closedAt ? t.closedAt.split('T')[0] : '');
-    if (d) {
-      dateMap.set(d, [...(dateMap.get(d) || []), t]);
-    }
+  // 4. Overtrading / Consecutive Losses
+  const multiLossDays = closed.filter((t, i, arr) => {
+    if (t.result !== 'LOSS') return false;
+    const sameDay = arr.filter(o => o.date === t.date && o.result === 'LOSS');
+    return sameDay.length >= 2;
   });
 
-  const multiLossDays = [...dateMap.entries()].filter(([_, dTrades]) => {
-    const dayLosses = dTrades.filter(t => t.result === 'LOSS').length;
-    return dayLosses >= 2;
-  });
-
-  if (multiLossDays.length > 0) {
-    const totalTradesOnMultiLossDays = multiLossDays.reduce((sum, [_, dTrades]) => sum + dTrades.length, 0);
-    const totalPnlOnMultiLossDays = multiLossDays.reduce((sum, [_, dTrades]) => sum + dTrades.reduce((s, t) => s + (t.pnl || 0), 0), 0);
-
+  if (multiLossDays.length >= 2) {
     cards.push({
-      id: 'daily-stop-rule',
-      category: 'discipline',
-      title: 'Avoid new trades after 2 losses in the same day',
-      explanation: `On days with 2+ losses, subsequent trades generated ${totalPnlOnMultiLossDays < 0 ? `-$${Math.abs(Math.round(totalPnlOnMultiLossDays))}` : `$${Math.round(totalPnlOnMultiLossDays)}`} across ${totalTradesOnMultiLossDays} trades.`,
-      action: 'Set a hard daily circuit breaker: walk away from the screens immediately after 2 consecutive red trades.',
-      severity: 'danger',
+      id: 'stop-out-discipline',
+      category: 'mistake',
+      title: 'Loss clusters indicate lack of a 2-loss stop rule',
+      explanation: 'You took additional trades on days where 2 or more losses had already occurred.',
+      action: 'Enforce a strict 2-loss maximum daily stop rule. Shut screens after the second loss.',
+      severity: 'warning',
       metric: 'Circuit Breaker',
       evidence: `${multiLossDays.length} breach days detected`,
     });
@@ -243,9 +227,9 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(245,158,11,0.12)' }}
+            style={{ background: 'rgba(37,99,235,0.12)' }}
           >
-            <Brain size={20} style={{ color: WARNING }} />
+            <Brain size={20} style={{ color: ACCENT_LIGHT }} />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -269,15 +253,16 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
         <div className="flex items-center gap-1.5 flex-wrap self-end sm:self-auto">
           {(['ALL', 'discipline', 'setup', 'session', 'mistake'] as const).map(cat => {
             const count = cat === 'ALL' ? allInsights.length : allInsights.filter(c => c.category === cat).length;
+            const isSelected = filter === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
                 className="text-xs px-2.5 py-1 rounded-lg capitalize font-medium transition-all flex items-center gap-1"
                 style={{
-                  background: filter === cat ? 'rgba(245,158,11,0.15)' : colors.inputBg,
-                  color: filter === cat ? WARNING : colors.textMuted,
-                  border: `1px solid ${filter === cat ? 'rgba(245,158,11,0.3)' : colors.border}`,
+                  background: isSelected ? 'rgba(37,99,235,0.15)' : colors.inputBg,
+                  color: isSelected ? ACCENT_LIGHT : colors.textMuted,
+                  border: `1px solid ${isSelected ? 'rgba(37,99,235,0.3)' : colors.border}`,
                 }}
               >
                 <span>{cat === 'ALL' ? 'All Advice' : cat}</span>
@@ -285,7 +270,7 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
                   <span
                     className="text-[10px] px-1 py-0.2 rounded-full opacity-80"
                     style={{
-                      background: filter === cat ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)',
+                      background: isSelected ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.06)',
                     }}
                   >
                     {count}
@@ -297,7 +282,7 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
           <Link
             to="/ai-mentor"
             className="text-xs flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all hover:opacity-80 ml-1"
-            style={{ color: WARNING, background: colors.inputBg, border: `1px solid ${colors.border}` }}
+            style={{ color: ACCENT_LIGHT, background: colors.inputBg, border: `1px solid ${colors.border}` }}
           >
             <span>Ask Mentor</span>
             <ArrowRight size={12} />
@@ -314,7 +299,7 @@ export function AIInsightFeed({ trades }: { trades: Trade[] }) {
           return (
             <div
               key={card.id}
-              className="rounded-xl p-4 flex flex-col justify-between transition-all hover:translate-y-[-2px]"
+              className="rounded-xl p-4 flex flex-col justify-between transition-all hover:translate-y-[-2px] hover:opacity-95 shadow-sm"
               style={{
                 background: colors.inputBg,
                 border: `1px solid ${colors.border}`,

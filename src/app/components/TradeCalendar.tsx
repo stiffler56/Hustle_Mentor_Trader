@@ -26,10 +26,11 @@ interface TradeCalendarProps {
   trades: Trade[];
 }
 
-const PROFIT = '#10b981';
-const LOSS_COLOR = '#f87171';
-const WARNING = '#f59e0b';
-const INFO = '#60a5fa';
+const PROFIT = '#10B981';
+const LOSS_COLOR = '#EF4444';
+const ACCENT_BLUE = '#2563EB';
+const ACCENT_LIGHT = '#3B82F6';
+const INFO = '#60A5FA';
 
 export function TradeCalendar({ trades }: TradeCalendarProps) {
   const navigate = useNavigate();
@@ -137,16 +138,16 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
       const alpha = 0.08 + intensity * 0.22;
       const borderAlpha = 0.25 + intensity * 0.45;
       return {
-        background: `rgba(248, 113, 113, ${alpha.toFixed(2)})`,
-        borderColor: `rgba(248, 113, 113, ${borderAlpha.toFixed(2)})`,
+        background: `rgba(239, 68, 68, ${alpha.toFixed(2)})`,
+        borderColor: `rgba(239, 68, 68, ${borderAlpha.toFixed(2)})`,
         textColor: LOSS_COLOR,
       };
     }
 
     return {
-      background: 'rgba(96, 165, 250, 0.12)',
-      borderColor: 'rgba(96, 165, 250, 0.4)',
-      textColor: INFO,
+      background: 'rgba(37, 99, 235, 0.12)',
+      borderColor: 'rgba(37, 99, 235, 0.4)',
+      textColor: ACCENT_LIGHT,
     };
   };
 
@@ -163,23 +164,23 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: `${WARNING}1f` }}
+            style={{ background: 'rgba(37,99,235,0.12)' }}
           >
-            <Calendar size={18} style={{ color: WARNING }} />
+            <Calendar size={18} style={{ color: ACCENT_LIGHT }} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-widest" style={{ color: colors.textMuted }}>
+              <span className="text-xs uppercase tracking-widest font-semibold" style={{ color: colors.textMuted }}>
                 Trade Heatmap Calendar
               </span>
               <span
-                className="text-[11px] px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(245,158,11,0.12)', color: WARNING, border: '1px solid rgba(245,158,11,0.25)' }}
+                className="text-[11px] px-2.5 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(37,99,235,0.12)', color: ACCENT_LIGHT, border: '1px solid rgba(37,99,235,0.25)' }}
               >
-                TradeZella Style
+                FundingPips Mode
               </span>
             </div>
-            <h2 className="text-lg lg:text-xl leading-tight font-semibold" style={{ color: colors.text }}>
+            <h2 className="text-lg lg:text-xl leading-tight font-bold" style={{ color: colors.text }}>
               {monthYearLabel}
             </h2>
           </div>
@@ -198,11 +199,11 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
           </button>
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 text-xs rounded-lg font-medium transition-all hover:opacity-80 active:scale-95"
+            className="px-3 py-1.5 text-xs rounded-lg font-semibold transition-all hover:opacity-80 active:scale-95"
             style={{
-              color: WARNING,
-              background: 'rgba(245,158,11,0.1)',
-              border: '1px solid rgba(245,158,11,0.3)',
+              color: ACCENT_LIGHT,
+              background: 'rgba(37,99,235,0.12)',
+              border: '1px solid rgba(37,99,235,0.3)',
             }}
           >
             Today
@@ -225,7 +226,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         style={{ borderBottom: `1px solid ${colors.border}`, background: colors.inputBg }}
       >
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Net P&L</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Net P&L</p>
           <p
             className="text-base font-bold mt-0.5"
             style={{ color: monthStats.totalPnL >= 0 ? PROFIT : LOSS_COLOR }}
@@ -238,7 +239,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         </div>
 
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Win Rate</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Win Rate</p>
           <p className="text-base font-bold mt-0.5" style={{ color: colors.text }}>
             {monthStats.winRate}%
           </p>
@@ -248,7 +249,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         </div>
 
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Total Trades</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Total Trades</p>
           <p className="text-base font-bold mt-0.5" style={{ color: colors.text }}>
             {monthStats.totalTrades}
           </p>
@@ -258,7 +259,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         </div>
 
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Best Day</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Best Day</p>
           <p className="text-base font-bold mt-0.5" style={{ color: monthStats.bestDay > 0 ? PROFIT : colors.text }}>
             {monthStats.bestDay > 0 ? `+$${Math.round(monthStats.bestDay)}` : '$0'}
           </p>
@@ -266,7 +267,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         </div>
 
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Worst Day</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Worst Day</p>
           <p className="text-base font-bold mt-0.5" style={{ color: monthStats.worstDay < 0 ? LOSS_COLOR : colors.text }}>
             {monthStats.worstDay < 0 ? `-$${Math.abs(Math.round(monthStats.worstDay))}` : '$0'}
           </p>
@@ -274,12 +275,12 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         </div>
 
         <div className="rounded-xl p-2.5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <p className="text-[11px]" style={{ color: colors.textMuted }}>Patterns</p>
+          <p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Patterns</p>
           <div className="flex items-center gap-2 mt-1">
             {monthStats.highVolumeDays > 0 ? (
               <span
                 className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded font-medium"
-                style={{ background: 'rgba(245,158,11,0.15)', color: WARNING }}
+                style={{ background: 'rgba(37,99,235,0.15)', color: ACCENT_LIGHT }}
                 title={`${monthStats.highVolumeDays} high volume days`}
               >
                 <Flame size={11} /> {monthStats.highVolumeDays}
@@ -333,12 +334,12 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                   className="group relative rounded-xl p-2 min-h-[78px] sm:min-h-[86px] flex flex-col justify-between transition-all cursor-pointer hover:scale-[1.02] hover:z-10 select-none"
                   style={{
                     background: cellStyle.background,
-                    border: `1px solid ${isSelected ? WARNING : cellStyle.borderColor}`,
+                    border: `1px solid ${isSelected ? ACCENT_BLUE : cellStyle.borderColor}`,
                     opacity: day.isCurrentMonth ? 1 : 0.25,
                     boxShadow: isSelected
-                      ? `0 0 0 2px ${WARNING}, 0 4px 12px rgba(245,158,11,0.2)`
+                      ? `0 0 0 2px ${ACCENT_BLUE}, 0 4px 12px rgba(37,99,235,0.25)`
                       : day.isToday
-                      ? `0 0 0 2px ${WARNING}`
+                      ? `0 0 0 2px ${ACCENT_BLUE}`
                       : undefined,
                   }}
                   title={
@@ -351,7 +352,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                   <div className="flex items-center justify-between gap-1">
                     <span
                       className="text-xs font-semibold leading-none"
-                      style={{ color: day.isToday ? WARNING : day.isCurrentMonth ? colors.text : colors.textMuted }}
+                      style={{ color: day.isToday ? ACCENT_LIGHT : day.isCurrentMonth ? colors.text : colors.textMuted }}
                     >
                       {day.date.getDate()}
                     </span>
@@ -360,7 +361,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                       {day.isOvertrading && day.count > 0 && (
                         <span
                           className="flex items-center justify-center w-3.5 h-3.5 rounded-full"
-                          style={{ background: 'rgba(245,158,11,0.2)', color: WARNING }}
+                          style={{ background: 'rgba(37,99,235,0.2)', color: ACCENT_LIGHT }}
                           title="High volume / potential overtrading"
                         >
                           <Flame size={9} />
@@ -454,7 +455,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
             <span style={{ color: colors.textMuted }}>Profit Day</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ background: 'rgba(248,113,113,0.3)', border: '1px solid rgba(248,113,113,0.7)' }} />
+            <div className="w-3 h-3 rounded" style={{ background: 'rgba(239,68,68,0.3)', border: '1px solid rgba(239,68,68,0.7)' }} />
             <span style={{ color: colors.textMuted }}>Loss Day</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -462,7 +463,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
             <span style={{ color: colors.textMuted }}>No Trades</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Flame size={12} style={{ color: WARNING }} />
+            <Flame size={12} style={{ color: ACCENT_LIGHT }} />
             <span style={{ color: colors.textMuted }}>High Volume</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -481,7 +482,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
           <div
             className="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[88vh]"
-            style={{ background: colors.surface, border: `1px solid ${colors.border}` }}
+            style={{ background: '#121826', border: '1px solid #1E293B' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -502,7 +503,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                   {selectedDay.isToday && (
                     <span
                       className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                      style={{ background: 'rgba(245,158,11,0.2)', color: WARNING }}
+                      style={{ background: 'rgba(37,99,235,0.2)', color: ACCENT_LIGHT }}
                     >
                       Today
                     </span>
@@ -533,10 +534,10 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
             {(selectedDay.isOvertrading || selectedDay.isMistakeHeavy) && (
               <div
                 className="px-6 py-3 space-y-2"
-                style={{ background: 'rgba(245,158,11,0.06)', borderBottom: `1px solid ${colors.border}` }}
+                style={{ background: 'rgba(37,99,235,0.06)', borderBottom: `1px solid ${colors.border}` }}
               >
                 {selectedDay.isOvertrading && (
-                  <div className="flex items-center gap-2 text-xs" style={{ color: WARNING }}>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: ACCENT_LIGHT }}>
                     <Flame size={14} className="shrink-0" />
                     <span>
                       <strong>High Trading Frequency:</strong> {selectedDay.count} trades taken today. Watch out for overtrading fatigue.
@@ -567,7 +568,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                 return (
                   <div
                     key={trade.id}
-                    className="rounded-xl p-4 transition-all"
+                    className="rounded-xl p-4 transition-all hover:bg-[#162032]"
                     style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -579,7 +580,7 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
                           <span
                             className="text-xs px-2 py-0.5 rounded-full font-medium"
                             style={{
-                              background: trade.orderType === 'Buy' ? 'rgba(16,185,129,0.15)' : 'rgba(248,113,113,0.15)',
+                              background: trade.orderType === 'Buy' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
                               color: trade.orderType === 'Buy' ? PROFIT : LOSS_COLOR,
                             }}
                           >
@@ -642,18 +643,13 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
 
               <button
                 onClick={() => {
-                  const dateStr = selectedDay.dateStr;
                   setSelectedDay(null);
-                  navigateToJournalDate(dateStr);
+                  navigateToJournalDate(selectedDay.dateStr);
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  color: '#000',
-                  boxShadow: '0 2px 8px rgba(245,158,11,0.25)',
-                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-700"
+                style={{ background: ACCENT_BLUE }}
               >
-                <span>Open in Trade Journal</span>
+                <span>Open in Journal</span>
                 <ExternalLink size={13} />
               </button>
             </div>
@@ -663,5 +659,3 @@ export function TradeCalendar({ trades }: TradeCalendarProps) {
     </div>
   );
 }
-
-export default TradeCalendar;
