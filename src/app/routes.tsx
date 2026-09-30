@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, redirect } from 'react-router';
 import { Layout } from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import TradeScorer from './pages/TradeScorer';
@@ -12,6 +12,8 @@ import BrokerIntegration from './pages/BrokerIntegration';
 import Challenge from './pages/Challenge';
 import DataHub from './pages/DataHub';
 import PatternRecognition from './pages/PatternRecognition';
+import AccountsPage from './pages/AccountsPage';
+import PropFirmDashboard from './pages/PropFirmDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -19,6 +21,9 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: Dashboard },
+      { path: 'prop-firm', Component: AccountsPage },
+      { path: 'prop-accounts', Component: AccountsPage },
+      { path: 'accounts', Component: AccountsPage },
       { path: 'scorer', Component: TradeScorer },
       { path: 'journal', Component: Journal },
       { path: 'analytics', Component: Analytics },
@@ -30,9 +35,9 @@ export const router = createBrowserRouter([
       { path: 'challenge', Component: Challenge },
       { path: 'data-hub', Component: DataHub },
       { path: 'patterns', Component: PatternRecognition },
-      { path: 'notion', element: <Navigate to="/data-hub" replace /> },
-      { path: 'github', element: <Navigate to="/data-hub" replace /> },
-      { path: 'data', element: <Navigate to="/data-hub" replace /> },
+      { path: 'notion', loader: () => redirect('/data-hub') },
+      { path: 'github', loader: () => redirect('/data-hub') },
+      { path: 'data', loader: () => redirect('/data-hub') },
     ],
   },
 ]);

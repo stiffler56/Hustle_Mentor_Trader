@@ -21,14 +21,17 @@ import {
   PlayCircle,
   Brain,
   Link2,
+  Building2,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { useAuthContext } from '../data/AuthContext';
 import { useChallengeContext } from '../data/ChallengeContext';
+import { usePropAccountsContext } from '../data/PropAccountsContext';
 import { useTheme } from '../data/ThemeContext';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/accounts', label: 'Accounts', icon: Building2 },
   { to: '/scorer', label: 'Trade Scorer', icon: Zap },
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -148,6 +151,7 @@ export function Layout() {
   const location = useLocation();
   const { trades } = useTradesContext();
   const { challenge, dayNumber } = useChallengeContext();
+  const { accounts, selectedAccount } = usePropAccountsContext();
   const { isDayMode, toggleTheme, colors } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -196,6 +200,11 @@ export function Layout() {
               >
                 <Icon size={16} />
                 <span>{label}</span>
+                {label === 'Accounts' && accounts.length > 0 && (
+                  <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(37,99,235,0.15)', color: '#2563eb', border: '1px solid rgba(37,99,235,0.3)' }}>
+                    {accounts.length}
+                  </span>
+                )}
                 {label === 'Journal' && openTrades > 0 && (
                   <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f59e0b', color: '#000' }}>
                     {openTrades}

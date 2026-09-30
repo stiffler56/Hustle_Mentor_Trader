@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthProvider, useAuthContext } from './data/AuthContext';
 import { TradesProvider } from './data/TradesContext';
+import { PropAccountsProvider } from './data/PropAccountsContext';
 import { ChallengeProvider } from './data/ChallengeContext';
 import { ThemeProvider } from './data/ThemeContext';
 import AuthPage from './pages/AuthPage';
@@ -45,9 +46,11 @@ function InnerApp() {
   // 3. Authenticated or guest → render the full app
   return (
     <TradesProvider>
-      <ChallengeProvider>
-        <RouterProvider router={router} />
-      </ChallengeProvider>
+      <PropAccountsProvider>
+        <ChallengeProvider>
+          <RouterProvider router={router} />
+        </ChallengeProvider>
+      </PropAccountsProvider>
     </TradesProvider>
   );
 }
