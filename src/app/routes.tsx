@@ -6,14 +6,14 @@ import Journal from './pages/Journal';
 import Analytics from './pages/Analytics';
 import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import TradeReplay from './pages/TradeReplay';
-import PsychologyJournal from './pages/PsychologyJournal';
 import AIMentor from './pages/AIMentor';
 import BrokerIntegration from './pages/BrokerIntegration';
 import Challenge from './pages/Challenge';
 import DataHub from './pages/DataHub';
 import PatternRecognition from './pages/PatternRecognition';
 import AccountsPage from './pages/AccountsPage';
-import PropFirmDashboard from './pages/PropFirmDashboard';
+import TradeCopier from './pages/TradeCopier';
+import EconomicCalendar from './pages/EconomicCalendar';
 
 export const router = createBrowserRouter([
   {
@@ -21,16 +21,26 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: Dashboard },
+      { path: 'accounts', Component: AccountsPage },
       { path: 'prop-firm', Component: AccountsPage },
       { path: 'prop-accounts', Component: AccountsPage },
-      { path: 'accounts', Component: AccountsPage },
-      { path: 'scorer', Component: TradeScorer },
       { path: 'journal', Component: Journal },
       { path: 'analytics', Component: Analytics },
       { path: 'advanced-analytics', Component: AdvancedAnalytics },
+
+      // Trading Utilities
+      { path: 'tools/scorer', Component: TradeScorer },
+      { path: 'scorer', Component: TradeScorer },
+      { path: 'utilities/copier', Component: TradeCopier },
+      { path: 'utilities/replay', Component: TradeReplay },
       { path: 'replay', Component: TradeReplay },
-      { path: 'psychology', Component: PsychologyJournal },
+      { path: 'utilities/mentor', Component: AIMentor },
       { path: 'ai-mentor', Component: AIMentor },
+      { path: 'utilities/calendar', Component: EconomicCalendar },
+
+      // Secondary Utilities & Platform
+      { path: 'psychology', loader: () => redirect('/journal') },
+      { path: 'broker-integration', Component: BrokerIntegration },
       { path: 'broker', Component: BrokerIntegration },
       { path: 'challenge', Component: Challenge },
       { path: 'data-hub', Component: DataHub },
