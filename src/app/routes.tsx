@@ -4,7 +4,6 @@ import Dashboard from './pages/Dashboard';
 import TradeScorer from './pages/TradeScorer';
 import Journal from './pages/Journal';
 import Analytics from './pages/Analytics';
-import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import TradeReplay from './pages/TradeReplay';
 import AIMentor from './pages/AIMentor';
 import BrokerIntegration from './pages/BrokerIntegration';
@@ -22,11 +21,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: Dashboard },
       { path: 'accounts', Component: AccountsPage },
-      { path: 'prop-firm', Component: AccountsPage },
-      { path: 'prop-accounts', Component: AccountsPage },
+      { path: 'prop-firm', loader: () => redirect('/accounts') },
+      { path: 'prop-accounts', loader: () => redirect('/accounts') },
       { path: 'journal', Component: Journal },
       { path: 'analytics', Component: Analytics },
-      { path: 'advanced-analytics', Component: AdvancedAnalytics },
+      { path: 'advanced-analytics', loader: () => redirect('/analytics') },
 
       // Trading Utilities
       { path: 'tools/scorer', Component: TradeScorer },
