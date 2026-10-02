@@ -14,32 +14,32 @@ export interface ThemeColors {
   accent: string;
 }
 
+const WHITE_BLUE: ThemeColors = {
+  appBg:     '#FFFFFF',
+  surface:   '#FFFFFF',
+  sidebar:   '#FFFFFF',
+  border:    '#DBEAFE',
+  text:      '#1E3A8A',
+  textSub:   '#2563EB',
+  textMuted: '#3B82F6',
+  textFaint: '#60A5FA',
+  rowBorder: '#EFF6FF',
+  inputBg:   '#F8FAFC',
+  accent:    '#2563EB',
+};
+
 const NIGHT: ThemeColors = {
-  appBg:     '#060912',
-  surface:   '#0d1117',
-  sidebar:   '#0a0e1a',
-  border:    '#1c2333',
-  text:      '#e5e7eb',
-  textSub:   '#9ca3af',
-  textMuted: '#6b7280',
-  textFaint: '#4b5563',
-  rowBorder: '#111827',
-  inputBg:   '#0a0e1a',
-  accent:    '#f59e0b',
+  ...WHITE_BLUE,
+  surface:   '#F8FAFC',
+  inputBg:   '#F1F5F9',
+  border:    '#BFDBFE',
 };
 
 const DAY: ThemeColors = {
-  appBg:     '#f0f4f8',
-  surface:   '#ffffff',
-  sidebar:   '#ffffff',
-  border:    '#e2e8f0',
-  text:      '#1e293b',
-  textSub:   '#475569',
-  textMuted: '#64748b',
-  textFaint: '#94a3b8',
-  rowBorder: '#f1f5f9',
-  inputBg:   '#f8fafc',
-  accent:    '#f59e0b',
+  ...WHITE_BLUE,
+  surface:   '#FFFFFF',
+  inputBg:   '#F8FAFC',
+  border:    '#DBEAFE',
 };
 
 interface ThemeContextType {
@@ -52,19 +52,18 @@ const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDayMode, setIsDayMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('hustle_theme') === 'day'; } catch { return false; }
+    try { return localStorage.getItem('hustle_theme') !== 'night'; } catch { return true; }
   });
 
   useEffect(() => {
     localStorage.setItem('hustle_theme', isDayMode ? 'day' : 'night');
-    // also set a root class for any future CSS-variable hooks
     document.documentElement.classList.toggle('day-mode', isDayMode);
   }, [isDayMode]);
 
   return (
     <ThemeContext.Provider value={{
       isDayMode,
-      toggleTheme: () => setIsDayMode(p => !p),
+      toggleTheme: () => setIsDayMode((p: boolean) => !p),
       colors: isDayMode ? DAY : NIGHT,
     }}>
       {children}
