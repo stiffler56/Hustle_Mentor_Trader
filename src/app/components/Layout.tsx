@@ -57,6 +57,8 @@ const UTILITY_NAV_ITEMS: NavItemConfig[] = [
 const SECONDARY_NAV_ITEMS: NavItemConfig[] = [
   { to: '/broker-integration', label: 'Broker Integration', icon: Link2, aliasPaths: ['/broker'] },
   { to: '/challenge', label: '30-Day Challenge', icon: Flame, badgeType: 'challenge' },
+  { to: '/data-hub', label: 'Data Hub', icon: Layers, aliasPaths: ['/data', '/notion', '/github'] },
+  { to: '/patterns', label: 'Pattern Recognition', icon: TrendingUp },
 ];
 
 function EdgeCard({ trades }: { trades: Trade[] }) {
