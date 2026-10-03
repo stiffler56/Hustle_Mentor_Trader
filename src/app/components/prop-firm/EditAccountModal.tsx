@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, RotateCcw, ArrowRightCircle } from 'lucide-react';
+import { X, Trash2, RotateCcw, ArrowRightCircle, Edit3, Award, RefreshCw } from 'lucide-react';
 import type { Account, AccountStatus, PropPhase } from '../../data/accountTypes';
 
 interface EditAccountModalProps {
-  account: Account;
+  account?: Account | null;
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (id: string, updates: Partial<Account>) => void;
@@ -21,37 +21,39 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   onReset,
   onAdvancePhase,
 }) => {
-  const [name, setName] = useState(account.name);
-  const [accountNumber, setAccountNumber] = useState(account.accountNumber);
-  const [provider, setProvider] = useState(account.provider);
-  const [currentBalance, setCurrentBalance] = useState(account.currentBalance);
-  const [status, setStatus] = useState<AccountStatus>(account.status);
-  const [serverType, setServerType] = useState(account.serverType || '');
-  const [phase, setPhase] = useState<PropPhase>(account.propDetails?.phase || 'Phase 1');
-  const [dailyDrawdownLimitPct, setDailyDrawdownLimitPct] = useState(account.propDetails?.dailyDrawdownLimitPct || 5);
-  const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState(account.propDetails?.maxDrawdownLimitPct || 10);
-  const [profitTargetPct, setProfitTargetPct] = useState(account.propDetails?.profitTargetPct || 8);
-  const [notes, setNotes] = useState(account.notes || '');
-  const [investorPassword, setInvestorPassword] = useState(account.connection?.investorPassword || '');
-  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(account.isAutoSyncEnabled ?? false);
+  const [name, setName] = useState(account?.name || '');
+  const [accountNumber, setAccountNumber] = useState(account?.accountNumber || '');
+  const [provider, setProvider] = useState(account?.provider || '');
+  const [currentBalance, setCurrentBalance] = useState(account?.currentBalance || 0);
+  const [status, setStatus] = useState<AccountStatus>(account?.status || 'Active');
+  const [serverType, setServerType] = useState(account?.serverType || '');
+  const [phase, setPhase] = useState<PropPhase>(account?.propDetails?.phase || 'Phase 1');
+  const [dailyDrawdownLimitPct, setDailyDrawdownLimitPct] = useState(account?.propDetails?.dailyDrawdownLimitPct || 5);
+  const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState(account?.propDetails?.maxDrawdownLimitPct || 10);
+  const [profitTargetPct, setProfitTargetPct] = useState(account?.propDetails?.profitTargetPct || 8);
+  const [notes, setNotes] = useState(account?.notes || '');
+  const [investorPassword, setInvestorPassword] = useState(account?.connection?.investorPassword || '');
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(account?.isAutoSyncEnabled ?? false);
 
   useEffect(() => {
-    setName(account.name);
-    setAccountNumber(account.accountNumber);
-    setProvider(account.provider);
-    setCurrentBalance(account.currentBalance);
-    setStatus(account.status);
-    setServerType(account.serverType || '');
-    setPhase(account.propDetails?.phase || 'Phase 1');
-    setDailyDrawdownLimitPct(account.propDetails?.dailyDrawdownLimitPct || 5);
-    setMaxDrawdownLimitPct(account.propDetails?.maxDrawdownLimitPct || 10);
-    setProfitTargetPct(account.propDetails?.profitTargetPct || 8);
-    setNotes(account.notes || '');
-    setInvestorPassword(account.connection?.investorPassword || '');
-    setIsAutoSyncEnabled(account.isAutoSyncEnabled ?? false);
+    if (account) {
+      setName(account.name);
+      setAccountNumber(account.accountNumber);
+      setProvider(account.provider);
+      setCurrentBalance(account.currentBalance);
+      setStatus(account.status);
+      setServerType(account.serverType || '');
+      setPhase(account.propDetails?.phase || 'Phase 1');
+      setDailyDrawdownLimitPct(account.propDetails?.dailyDrawdownLimitPct || 5);
+      setMaxDrawdownLimitPct(account.propDetails?.maxDrawdownLimitPct || 10);
+      setProfitTargetPct(account.propDetails?.profitTargetPct || 8);
+      setNotes(account.notes || '');
+      setInvestorPassword(account.connection?.investorPassword || '');
+      setIsAutoSyncEnabled(account.isAutoSyncEnabled ?? false);
+    }
   }, [account, isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !account) return null;
 
   const isProp = account.category.startsWith('prop');
 
@@ -101,15 +103,12 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="w-full max-w-lg rounded-2xl p-6 relative my-8 bg-white border border-slate-200"
-        style={{
-          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-        }}
+        className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-200">
               <Edit3 size={18} className="text-blue-600" />
@@ -127,52 +126,52 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
           </button>
         </div>
 
-        {/* Quick Phase & Reset Actions */}
-        <div className="flex flex-wrap items-center gap-2 mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-          {isProp && (
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+          {/* Quick Phase & Reset Actions */}
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            {isProp && (
+              <button
+                type="button"
+                onClick={() => {
+                  onAdvancePhase?.(account.id);
+                  onClose();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+              >
+                <Award size={13} />
+                <span>Advance Phase</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
-                onAdvancePhase(account.id);
-                onClose();
+                if (window.confirm('Reset this account balance and drawdown back to initial?')) {
+                  onReset?.(account.id);
+                  onClose();
+                }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
             >
-              <Award size={13} />
-              <span>Advance Phase</span>
+              <RefreshCw size={13} />
+              <span>Reset Balance</span>
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Reset this account balance and drawdown back to initial?')) {
-                onReset(account.id);
-                onClose();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-          >
-            <RefreshCw size={13} />
-            <span>Reset Balance</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Delete this account permanently?')) {
-                onDelete(account.id);
-                onClose();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 ml-auto"
-          >
-            <Trash2 size={13} />
-            <span>Delete</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleSave} className="space-y-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Delete this account permanently?')) {
+                  onDelete?.(account.id);
+                  onClose();
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 ml-auto"
+            >
+              <Trash2 size={13} />
+              <span>Delete</span>
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
@@ -338,18 +337,18 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
             />
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+          {/* Action buttons (always visible at bottom) */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 shrink-0 sticky bottom-0 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900"
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
             >
               Save Changes
             </button>
