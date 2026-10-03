@@ -1,783 +1,943 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router';
 import {
-  LineChart,
-  Line,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
   Cell,
+  ReferenceLine,
 } from 'recharts';
 import {
-  AlertTriangle,
-  ArrowRight,
-  BarChart3,
-  BookOpen,
-  Brain,
-  Camera,
-  CheckCircle2,
-  ChevronDown,
-  Clock,
-  LineChart as LineChartIcon,
-  PlayCircle,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  TrendingDown,
   TrendingUp,
+  TrendingDown,
+  ShieldCheck,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
   Zap,
+  Target,
+  Sparkles,
+  ArrowUpRight,
+  ArrowDownRight,
+  CheckCircle2,
+  XCircle,
+  PlayCircle,
+  Calendar as CalendarIcon,
+  Bot,
+  ExternalLink,
+  Layers,
+  Activity,
+  Award,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
 import { usePropAccountsContext } from '../data/PropAccountsContext';
-import { TradeCalendar } from '../components/TradeCalendar';
-import { AIInsightFeed } from '../components/AIInsightFeed';
 import { useTheme } from '../data/ThemeContext';
-import type { Session, Strategy, Trade } from '../data/types';
-
-const PROFIT = '#10B981';
-const LOSS = '#EF4444';
-const ACCENT_BLUE = '#2563EB';
-const ACCENT_LIGHT = '#3B82F6';
-const NEUTRAL = '#94A3B8';
-
-type Tone = 'good' | 'warn' | 'bad' | 'info';
-type DateFilter = 'Today' | 'This Week' | 'This Month' | 'All';
-
-interface StatCardProps {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: Tone;
-  icon: React.ElementType;
-}
-
-interface Insight {
-  title: string;
-  body: string;
-  action: string;
-  tone: Tone;
-}
-
-function toneColor(tone: Tone) {
-  if (tone === 'good') return PROFIT;
-  if (tone === 'bad') return LOSS;
-  if (tone === 'info') return ACCENT_LIGHT;
-  return '#60A5FA';
-}
-
-function money(value: number) {
-  return `${value >= 0 ? '+' : ''}$${Math.round(value).toLocaleString()}`;
-}
-
-function pct(value: number) {
-  return `${Math.round(value)}%`;
-}
-
-function sortByNewest(a: Trade, b: Trade) {
-  return new Date(b.closedAt || b.createdAt || b.date).getTime() - new Date(a.closedAt || a.createdAt || a.date).getTime();
-}
-
-function average(values: number[]) {
-  if (!values.length) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function winRate(trades: Trade[]) {
-  const decided = trades.filter(t => t.result === 'WIN' || t.result === 'LOSS');
-  if (!decided.length) return 0;
-  return (decided.filter(t => t.result === 'WIN').length / decided.length) * 100;
-}
-
-function getBestGroup<T extends string>(trades: Trade[], key: (trade: Trade) => T) {
-  const groups = new Map<T, Trade[]>();
-  trades.forEach(trade => groups.set(key(trade), [...(groups.get(key(trade)) || []), trade]));
-
-  return [...groups.entries()]
-    .map(([name, group]) => ({
-      name,
-      count: group.length,
-      pnl: group.reduce((sum, trade) => sum + (trade.pnl || 0), 0),
-      winRate: winRate(group),
-    }))
-    .sort((a, b) => b.pnl - a.pnl)[0];
-}
-
-function makeInsight(closed: Trade[], openTrades: Trade[], reviewQueue: Trade[]): Insight {
-  if (closed.length < 3) {
-    return {
-      title: 'Build your sample first',
-      body: 'Log at least three closed trades so the mentor can separate real patterns from noise.',
-      action: 'Score the next setup before entry and attach before/after screenshots.',
-      tone: 'info',
-    };
-  }
-
-  const recent = [...closed].sort(sortByNewest).slice(0, 5);
-  const recentPnl = recent.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
-  const recentLosses = recent.filter(trade => trade.result === 'LOSS').length;
-  const lowScoreLosses = recent.filter(trade => trade.result === 'LOSS' && trade.score < 65).length;
-  const bestStrategy = getBestGroup(closed, trade => trade.strategy);
-  const bestSession = getBestGroup(closed, trade => trade.session);
-
-  if (recentLosses >= 3 || recentPnl < 0) {
-    return {
-      title: 'Reduce risk until the next A setup',
-      body: `${recentLosses} of your last ${recent.length} closed trades were losses. Your recent P&L is ${money(recentPnl)}.`,
-      action: 'Trade half risk or pause live entries until one replay review is completed.',
-      tone: 'bad',
-    };
-  }
-
-  if (lowScoreLosses >= 2) {
-    return {
-      title: 'Low-score trades are costing attention',
-      body: `${lowScoreLosses} recent losses came from setups scored below 65.`,
-      action: 'Raise the minimum score threshold before taking another live trade.',
-      tone: 'warn',
-    };
-  }
-
-  if (reviewQueue.length > 0) {
-    return {
-      title: 'Your screenshots are waiting for review',
-      body: `${reviewQueue.length} trade${reviewQueue.length === 1 ? '' : 's'} have screenshot evidence that should be reviewed before the next session.`,
-      action: 'Open Trade Replay and write one rule from the before/after comparison.',
-      tone: 'warn',
-    };
-  }
-
-  if (bestStrategy && bestStrategy.count >= 2) {
-    return {
-      title: `${bestStrategy.name} is your strongest playbook`,
-      body: `${bestStrategy.count} closed trades produced ${money(bestStrategy.pnl)} with a ${pct(bestStrategy.winRate)} win rate.`,
-      action: 'Prioritize this setup and avoid forcing lower-quality ideas.',
-      tone: bestStrategy.pnl >= 0 ? 'good' : 'warn',
-    };
-  }
-
-  if (bestSession && bestSession.count >= 2) {
-    return {
-      title: `${bestSession.name} session deserves focus`,
-      body: `This session has your clearest data so far with ${bestSession.count} trades and ${money(bestSession.pnl)} net P&L.`,
-      action: 'Plan tomorrow around your strongest session window.',
-      tone: 'good',
-    };
-  }
-
-  return {
-    title: 'Keep the process tight',
-    body: `${openTrades.length} open trade${openTrades.length === 1 ? '' : 's'} and ${closed.length} closed trades are now tracked.`,
-    action: 'Use the scorer before entries and replay after exits.',
-    tone: 'info',
-  };
-}
-
-function makeReadiness(closed: Trade[], openTrades: Trade[]) {
-  const recent = [...closed].sort(sortByNewest).slice(0, 5);
-  const avgFocus = average(recent.map(trade => trade.mentalFocus));
-  const avgScore = average(recent.map(trade => trade.score));
-  const losses = recent.filter(trade => trade.result === 'LOSS').length;
-  const openRisk = openTrades.reduce((sum, trade) => sum + trade.risk, 0);
-
-  let score = 72;
-  score += Math.min(12, Math.max(-18, avgScore - 70));
-  score += Math.min(8, Math.max(-15, avgFocus - 18));
-  score -= losses * 6;
-  score -= openRisk > 3 ? 10 : 0;
-  score = Math.max(0, Math.min(100, Math.round(score)));
-
-  if (closed.length === 0) {
-    return {
-      score: 64,
-      label: 'Preparation mode',
-      tone: 'info' as Tone,
-      message: 'No closed trades yet. Start with the scorer and capture a before screenshot.',
-    };
-  }
-
-  if (score >= 75) {
-    return {
-      score,
-      label: 'Ready, but selective',
-      tone: 'good' as Tone,
-      message: 'Conditions are stable. Only take setups that match your best rules.',
-    };
-  }
-
-  if (score >= 55) {
-    return {
-      score,
-      label: 'Wait for confirmation',
-      tone: 'warn' as Tone,
-      message: 'You can trade, but keep risk controlled and avoid forcing entries.',
-    };
-  }
-
-  return {
-    score,
-    label: 'Review before trading',
-    tone: 'bad' as Tone,
-    message: 'Recent data suggests a review session is smarter than another live entry.',
-  };
-}
-
-function StatCard({ label, value, sub, tone = 'info', icon: Icon }: StatCardProps) {
-  const { colors } = useTheme();
-  const color = toneColor(tone);
-
-  return (
-    <div
-      className="rounded-xl p-4 min-h-[132px] flex flex-col justify-between transition-all hover:opacity-95 shadow-sm"
-      style={{ background: colors.surface, border: `1px solid ${colors.border}` }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: colors.textMuted }}>
-          {label}
-        </p>
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: `${color}18` }}
-        >
-          <Icon size={18} style={{ color }} />
-        </div>
-      </div>
-      <div>
-        <p className="text-2xl font-bold leading-tight" style={{ color }}>
-          {value}
-        </p>
-        {sub && <p className="text-xs mt-1 leading-5" style={{ color: colors.textMuted }}>{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
-function CommandAction({ to, icon: Icon, label, sub }: { to: string; icon: React.ElementType; label: string; sub: string }) {
-  const { colors } = useTheme();
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-3 rounded-xl p-3 transition-all hover:translate-x-0.5 hover:opacity-95 shadow-sm"
-      style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}
-    >
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(37,99,235,0.12)' }}>
-        <Icon size={18} style={{ color: ACCENT_LIGHT }} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold leading-5" style={{ color: colors.text }}>{label}</p>
-        <p className="text-xs leading-5 truncate" style={{ color: colors.textMuted }}>{sub}</p>
-      </div>
-      <ArrowRight size={14} className="ml-auto shrink-0" style={{ color: colors.textFaint }} />
-    </Link>
-  );
-}
-
-function DecisionBadge({ decision }: { decision: string }) {
-  const colorMap: Record<string, { bg: string; color: string; border: string }> = {
-    TAKE: { bg: 'rgba(16,185,129,0.12)', color: PROFIT, border: 'rgba(16,185,129,0.25)' },
-    WAIT: { bg: 'rgba(37,99,235,0.12)', color: ACCENT_LIGHT, border: 'rgba(37,99,235,0.25)' },
-    PASS: { bg: 'rgba(239,68,68,0.12)', color: LOSS, border: 'rgba(239,68,68,0.25)' },
-  };
-  const c = colorMap[decision] ?? colorMap.PASS;
-  return (
-    <span
-      className="text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap font-medium border"
-      style={{ background: c.bg, color: c.color, borderColor: c.border }}
-    >
-      {decision}
-    </span>
-  );
-}
-
-function ResultBadge({ result }: { result?: string }) {
-  const { colors } = useTheme();
-  if (!result) return <span className="text-xs font-medium" style={{ color: colors.textMuted }}>Open</span>;
-  const colorMap: Record<string, { bg: string; color: string; border: string }> = {
-    WIN: { bg: 'rgba(16,185,129,0.12)', color: PROFIT, border: 'rgba(16,185,129,0.25)' },
-    LOSS: { bg: 'rgba(239,68,68,0.12)', color: LOSS, border: 'rgba(239,68,68,0.25)' },
-    BE: { bg: 'rgba(148,163,184,0.12)', color: NEUTRAL, border: 'rgba(148,163,184,0.25)' },
-  };
-  const c = colorMap[result] ?? colorMap.BE;
-  return (
-    <span
-      className="text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap font-medium border"
-      style={{ background: c.bg, color: c.color, borderColor: c.border }}
-    >
-      {result}
-    </span>
-  );
-}
-
-function PnlTooltip({ active, payload, label }: any) {
-  const { colors } = useTheme();
-  if (!active || !payload?.length) return null;
-  const value = payload[0].value || 0;
-  return (
-    <div className="rounded-lg p-3 text-xs shadow-xl" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}>
-      <p style={{ color: colors.textSub }} className="mb-1 font-medium">{label}</p>
-      <p className="font-bold" style={{ color: value >= 0 ? PROFIT : LOSS }}>P&L: {money(value)}</p>
-    </div>
-  );
-}
-
-function EmptyCommandCenter() {
-  const { colors } = useTheme();
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 p-6 lg:p-8">
-        <div className="flex flex-col justify-center">
-          <div
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium w-fit mb-5"
-            style={{ color: ACCENT_LIGHT, background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)' }}
-          >
-            <Sparkles size={14} />
-            FundingPips Trading Suite
-          </div>
-          <h1 className="text-3xl lg:text-4xl font-bold leading-tight max-w-2xl" style={{ color: colors.text }}>
-            Your professional trading command center for structured execution.
-          </h1>
-          <p className="text-sm lg:text-base mt-4 max-w-2xl leading-7" style={{ color: colors.textSub }}>
-            Start by scoring one setup, attach before and after charts, and track your consistency across evaluations and funded accounts.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Link
-              to="/scorer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700"
-              style={{ background: ACCENT_BLUE }}
-            >
-              <Zap size={16} />
-              Score First Trade
-            </Link>
-            <Link
-              to="/journal"
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all hover:bg-slate-800/80"
-              style={{ background: colors.inputBg, color: colors.text, border: `1px solid ${colors.border}` }}
-            >
-              <BookOpen size={16} />
-              Open Journal
-            </Link>
-          </div>
-        </div>
-        <div className="grid gap-3 content-center">
-          {[
-            ['Pre-Trade Scorer', 'Gate every entry with strict rule execution before risking capital.'],
-            ['Screenshot Review', 'Compare before and after charts to isolate structural mistakes.'],
-            ['AI Mentor', 'Convert your trade history into actionable consistency rules.'],
-            ['Trade Replay', 'Step through setup, entry, management, and exit mechanics.'],
-          ].map(([title, body]) => (
-            <div key={title} className="rounded-xl p-4 transition-all hover:bg-[#162032]" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-              <p className="text-sm font-semibold" style={{ color: colors.text }}>{title}</p>
-              <p className="text-xs mt-1 leading-5" style={{ color: colors.textMuted }}>{body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+import type { Trade } from '../data/types';
+import { getTradeDateStr } from '../utils/calendarUtils';
 
 export default function Dashboard() {
-  const { trades } = useTradesContext();
-  const { accounts, selectedAccount, setSelectedAccountId } = usePropAccountsContext();
-  const { colors } = useTheme();
+  const { trades, updateTrade } = useTradesContext();
+  const { selectedAccount } = usePropAccountsContext();
+  const { isDayMode } = useTheme();
 
-  const [dateFilter, setDateFilter] = useState<DateFilter>('This Month');
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
-  const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target as Node)) {
-        setAccountDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // ── Metrics Calculation ──────────────────────────────────────────────────
+  const closedTrades = useMemo(
+    () => trades.filter((t) => t.status === 'CLOSED'),
+    [trades]
+  );
+  const openTrades = useMemo(
+    () => trades.filter((t) => t.status === 'OPEN'),
+    [trades]
+  );
 
-  const closed = useMemo(() => trades.filter(t => t.status === 'CLOSED' && t.result), [trades]);
-  const openTrades = useMemo(() => trades.filter(t => t.status === 'OPEN'), [trades]);
-  const wins = useMemo(() => closed.filter(t => t.result === 'WIN').length, [closed]);
-  const losses = useMemo(() => closed.filter(t => t.result === 'LOSS').length, [closed]);
-  const totalPnL = useMemo(() => closed.reduce((acc, t) => acc + (t.pnl ?? 0), 0), [closed]);
-  const winRateValue = useMemo(() => winRate(closed), [closed]);
-  const avgScore = closed.length ? Math.round(average(closed.map(t => t.score))) : Math.round(average(trades.map(t => t.score)));
-  const avgFocus = trades.length ? Math.round(average(trades.map(t => t.mentalFocus))) : 0;
-  const reviewedTrades = closed.filter(t => Boolean(t.notes?.trim()) && (t.screenshotBefore || t.screenshotAfter));
-  const screenshotTrades = trades.filter(t => t.screenshotBefore || t.screenshotBefore2 || t.screenshotAfter || t.screenshotAfter2);
-  const reviewQueue = screenshotTrades
-    .filter(t => t.status === 'CLOSED' && (!t.notes || !t.screenshotBefore || !t.screenshotAfter))
-    .sort(sortByNewest)
-    .slice(0, 4);
-  const bestStrategy = getBestGroup(closed, trade => trade.strategy as Strategy);
-  const bestSession = getBestGroup(closed, trade => trade.session as Session);
-  const readiness = makeReadiness(closed, openTrades);
-  const insight = makeInsight(closed, openTrades, reviewQueue);
-  const recentTrades = [...trades].sort(sortByNewest).slice(0, 6);
+  const wins = useMemo(
+    () => closedTrades.filter((t) => (t.pnl ?? 0) > 0 || t.result === 'WIN'),
+    [closedTrades]
+  );
+  const losses = useMemo(
+    () => closedTrades.filter((t) => (t.pnl ?? 0) < 0 || t.result === 'LOSS'),
+    [closedTrades]
+  );
 
-  const sorted = [...closed].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  let cumulative = 0;
-  const pnlChartData = sorted.map((trade, index) => {
-    cumulative += trade.pnl ?? 0;
-    return {
-      index,
-      label: new Date(trade.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      pnl: Math.round(cumulative),
-    };
-  });
+  const totalPnL = useMemo(
+    () => closedTrades.reduce((acc, t) => acc + (t.pnl ?? 0), 0),
+    [closedTrades]
+  );
 
-  const sessions = ['New York', 'London', 'Tokyo', 'Sydney'] as const;
-  const sessionData = sessions
-    .map(session => {
-      const sessionTrades = closed.filter(trade => trade.session === session);
-      return {
-        session: session === 'New York' ? 'NY' : session === 'London' ? 'LDN' : session.slice(0, 3),
-        wr: Math.round(winRate(sessionTrades)),
-        count: sessionTrades.length,
-      };
-    })
-    .filter(item => item.count > 0);
+  const grossWins = useMemo(
+    () => wins.reduce((acc, t) => acc + (t.pnl ?? 0), 0),
+    [wins]
+  );
+  const grossLosses = useMemo(
+    () => Math.abs(losses.reduce((acc, t) => acc + (t.pnl ?? 0), 0)),
+    [losses]
+  );
 
-  if (trades.length === 0) {
-    return (
-      <div className="p-4 lg:p-6 space-y-6">
-        <EmptyCommandCenter />
-      </div>
+  const profitFactor = useMemo(() => {
+    if (grossLosses === 0) return grossWins > 0 ? 9.99 : 0;
+    return Number((grossWins / grossLosses).toFixed(2));
+  }, [grossWins, grossLosses]);
+
+  const avgPnL = useMemo(() => {
+    if (!closedTrades.length) return 0;
+    return Number((totalPnL / closedTrades.length).toFixed(2));
+  }, [closedTrades.length, totalPnL]);
+
+  const winCount = wins.length;
+  const lossCount = losses.length;
+  const totalDecided = winCount + lossCount;
+  const winRatePct = totalDecided > 0 ? (winCount / totalDecided) * 100 : 0;
+  const lossRatePct = totalDecided > 0 ? (lossCount / totalDecided) * 100 : 0;
+
+  // Initial balance for return % calculations
+  const baseBalance = selectedAccount?.initialBalance || 50000;
+  const pnlPercent = Number(((totalPnL / baseBalance) * 100).toFixed(2));
+
+  // ── Cumulative Account Performance Area Data ──────────────────────────────
+  const cumulativeData = useMemo(() => {
+    const sorted = [...closedTrades].sort(
+      (a, b) => new Date(a.createdAt || a.date).getTime() - new Date(b.createdAt || b.date).getTime()
     );
-  }
 
-  const activeAccountLabel = selectedAccount
-    ? `${selectedAccount.accountNumber} • $${Math.round(selectedAccount.initialBalance / 1000)}k ${selectedAccount.propDetails?.phase || 'Phase 1'}`
-    : '#20823275 • $50k Phase 1';
+    if (sorted.length === 0) {
+      return [
+        { label: 'Day 1', pnl: 0, balance: baseBalance },
+        { label: 'Day 5', pnl: 450, balance: baseBalance + 450 },
+        { label: 'Day 10', pnl: -280, balance: baseBalance - 280 },
+        { label: 'Day 15', pnl: 920, balance: baseBalance + 920 },
+        { label: 'Day 20', pnl: 1450, balance: baseBalance + 1450 },
+        { label: 'Day 25', pnl: 1200, balance: baseBalance + 1200 },
+        { label: 'Day 30', pnl: 2150, balance: baseBalance + 2150 },
+      ];
+    }
+
+    let running = 0;
+    return sorted.map((t, i) => {
+      running += t.pnl ?? 0;
+      const dateLabel = t.date ? t.date.slice(5) : `T${i + 1}`;
+      return {
+        label: dateLabel,
+        pnl: Math.round(running),
+        balance: Math.round(baseBalance + running),
+      };
+    });
+  }, [closedTrades, baseBalance]);
+
+  // ── Daily PnL Bar Chart Data ──────────────────────────────────────────────
+  const dailyPnLData = useMemo(() => {
+    const dayMap = new Map<string, number>();
+
+    closedTrades.forEach((t) => {
+      const dStr = getTradeDateStr(t);
+      if (!dStr) return;
+      dayMap.set(dStr, (dayMap.get(dStr) || 0) + (t.pnl ?? 0));
+    });
+
+    const entries = Array.from(dayMap.entries())
+      .map(([date, pnl]) => ({
+        date: date.slice(5),
+        fullDate: date,
+        pnl: Math.round(pnl),
+      }))
+      .sort((a, b) => a.fullDate.localeCompare(b.fullDate))
+      .slice(-14);
+
+    if (entries.length === 0) {
+      return [
+        { date: '09-18', pnl: 340 },
+        { date: '09-19', pnl: -450 },
+        { date: '09-20', pnl: 780 },
+        { date: '09-21', pnl: -1212 },
+        { date: '09-22', pnl: -757 },
+        { date: '09-23', pnl: 520 },
+        { date: '09-24', pnl: -210 },
+        { date: '09-25', pnl: 890 },
+      ];
+    }
+    return entries;
+  }, [closedTrades]);
+
+  // ── Weekly & Risk Health Metrics ──────────────────────────────────────────
+  const riskScore = useMemo(() => {
+    if (closedTrades.length === 0) return 85;
+    let score = 100;
+    if (winRatePct < 40) score -= 30;
+    else if (winRatePct < 50) score -= 15;
+
+    const heavyLosses = closedTrades.filter((t) => (t.pnl ?? 0) < -1000).length;
+    score -= heavyLosses * 15;
+
+    const noStops = closedTrades.filter((t) => t.mentalFocus < 5).length;
+    score -= noStops * 10;
+
+    return Math.max(0, Math.min(100, score));
+  }, [closedTrades, winRatePct]);
+
+  // ── TradeZella Monthly Calendar Heatmap Calculation ───────────────────────
+  const calendarData = useMemo(() => {
+    const now = new Date();
+    const targetMonthDate = new Date(now.getFullYear(), now.getMonth() + calendarMonthOffset, 1);
+    const year = targetMonthDate.getFullYear();
+    const month = targetMonthDate.getMonth();
+    const monthName = targetMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = (firstDay.getDay() + 6) % 7; // Monday = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const tradeMap = new Map<number, { trades: Trade[]; pnl: number; wins: number; losses: number }>();
+    closedTrades.forEach((t) => {
+      const dStr = getTradeDateStr(t);
+      if (!dStr) return;
+      const [y, m, d] = dStr.split('-').map(Number);
+      if (y === year && m === month + 1) {
+        if (!tradeMap.has(d)) {
+          tradeMap.set(d, { trades: [], pnl: 0, wins: 0, losses: 0 });
+        }
+        const item = tradeMap.get(d)!;
+        item.trades.push(t);
+        const p = t.pnl ?? 0;
+        item.pnl += p;
+        if (p > 0 || t.result === 'WIN') item.wins++;
+        else if (p < 0 || t.result === 'LOSS') item.losses++;
+      }
+    });
+
+    const weeks: Array<{
+      days: Array<{
+        dayNumber?: number;
+        pnl?: number;
+        tradeCount?: number;
+        winRate?: number;
+        isHeavyLoss?: boolean;
+        isCurrentMonth?: boolean;
+      }>;
+      weeklyPnl: number;
+      weeklyTrades: number;
+    }> = [];
+
+    let currentDayNumber = 1;
+    let weekDays: Array<any> = [];
+
+    for (let i = 0; i < startDayOfWeek; i++) {
+      weekDays.push({ isCurrentMonth: false });
+    }
+
+    while (currentDayNumber <= daysInMonth) {
+      const dayStats = tradeMap.get(currentDayNumber);
+      const pnl = dayStats ? dayStats.pnl : 0;
+      const count = dayStats ? dayStats.trades.length : 0;
+      const wr = count > 0 ? (dayStats!.wins / count) * 100 : 0;
+      const isHeavyLoss = pnl < -1000;
+
+      weekDays.push({
+        dayNumber: currentDayNumber,
+        pnl,
+        tradeCount: count,
+        winRate: wr,
+        isHeavyLoss,
+        isCurrentMonth: true,
+      });
+
+      if (weekDays.length === 7) {
+        const weeklyPnl = weekDays.reduce((acc, d) => acc + (d.pnl || 0), 0);
+        const weeklyTrades = weekDays.reduce((acc, d) => acc + (d.tradeCount || 0), 0);
+        weeks.push({ days: weekDays, weeklyPnl, weeklyTrades });
+        weekDays = [];
+      }
+      currentDayNumber++;
+    }
+
+    if (weekDays.length > 0) {
+      while (weekDays.length < 7) {
+        weekDays.push({ isCurrentMonth: false });
+      }
+      const weeklyPnl = weekDays.reduce((acc, d) => acc + (d.pnl || 0), 0);
+      const weeklyTrades = weekDays.reduce((acc, d) => acc + (d.tradeCount || 0), 0);
+      weeks.push({ days: weekDays, weeklyPnl, weeklyTrades });
+    }
+
+    return { monthName, weeks };
+  }, [calendarMonthOffset, closedTrades]);
+
+  // ── Manual Close Helper for Open Positions ────────────────────────────────
+  const handleClosePosition = (trade: Trade) => {
+    const exitPrice = trade.exitPrice || trade.entryPrice || 0;
+    updateTrade(trade.id, {
+      status: 'CLOSED',
+      closedAt: new Date().toISOString(),
+      exitPrice,
+      result: (trade.pnl ?? 0) >= 0 ? 'WIN' : 'LOSS',
+    });
+  };
+
+  // ── Dynamic Color Tokens for Day Mode vs Night Mode ───────────────────────
+  const themeCardBg = isDayMode ? 'bg-white border-[#E5E4E2]' : 'bg-[#131418] border-[#1E2026]';
+  const themeSubCardBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]';
+  const themeTextPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const themeTextSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const themeDivider = isDayMode ? 'border-[#E5E4E2]' : 'border-[#252830]';
+  const themeGridStroke = isDayMode ? '#E5E4E2' : '#1E2026';
 
   return (
-    <div className="p-4 lg:p-6 space-y-5">
-      {/* ── FundingPips Top Bar ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-        {/* Left: Title & Subtle Breadcrumb */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 mb-1">
-            <span className="hover:text-slate-300 transition-colors">Overview</span>
-            <span className="text-slate-600">/</span>
-            <span className="text-blue-400">Performance</span>
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
-            Dashboard
-          </h1>
-        </div>
-
-        {/* Right: Quick-Action Cluster */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Active Account Switcher Pill */}
-          <div className="relative" ref={accountDropdownRef}>
-            <button
-              onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90 active:scale-95"
-              style={{
-                background: 'rgba(37,99,235,0.1)',
-                border: '1px solid rgba(37,99,235,0.25)',
-                color: '#3B82F6',
-              }}
-              title="Switch active trading account"
+    <div className={`p-4 lg:p-6 space-y-4 min-h-full font-sans transition-colors ${isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'}`}>
+      {/* ── 1. Top KPI Summary Strip (Horizontal Summary Banner) ── */}
+      <div className={`rounded-xl border p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-xs ${themeCardBg}`}>
+        {/* Metric 1: Net PnL Gross $ */}
+        <div className={`flex-1 border-b lg:border-b-0 lg:border-r pb-3 lg:pb-0 lg:pr-6 ${themeDivider}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1 ${themeTextSecondary}`}>
+            Net P&L (Gross)
+          </p>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span
+              className={`text-2xl lg:text-3xl font-black tracking-tight ${
+                totalPnL >= 0
+                  ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                  : isDayMode ? 'text-[#DC2626]' : 'text-white'
+              }`}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{activeAccountLabel}</span>
-              <ChevronDown size={14} className="opacity-70 ml-0.5" />
-            </button>
-
-            {/* Account Switcher Dropdown */}
-            {accountDropdownOpen && accounts.length > 0 && (
-              <div
-                className="absolute right-0 mt-1.5 w-64 rounded-xl py-1.5 shadow-2xl z-50 overflow-hidden"
-                style={{
-                  background: '#121826',
-                  border: '1px solid #1E293B',
-                }}
-              >
-                <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Active Accounts
-                </div>
-                {accounts.map(acc => {
-                  const isSelected = selectedAccount?.id === acc.id;
-                  return (
-                    <button
-                      key={acc.id}
-                      onClick={() => {
-                        setSelectedAccountId(acc.id);
-                        setAccountDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
-                        isSelected
-                          ? 'bg-blue-600/15 text-blue-400 font-semibold'
-                          : 'text-slate-300 hover:bg-slate-800/60'
-                      }`}
-                    >
-                      <div>
-                        <p className="font-medium">{acc.name || acc.accountNumber}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {acc.accountNumber} • ${Math.round(acc.initialBalance / 1000)}k {acc.propDetails?.phase || ''}
-                        </p>
-                      </div>
-                      {isSelected && <CheckCircle2 size={14} className="text-blue-400 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Date Range Preset Filter */}
-          <div className="flex items-center rounded-lg p-0.5" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-            {(['Today', 'This Week', 'This Month', 'All'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setDateFilter(tab)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  dateFilter === tab
-                    ? 'bg-[#2563EB] text-white shadow-sm font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Electric Blue Primary Button: + Log Trade */}
-          <Link
-            to="/journal"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-600/20"
-            style={{ background: ACCENT_BLUE }}
-          >
-            <Plus size={14} />
-            <span>+ Log Trade</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* ── KPI Stat Cards ── */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 lg:gap-4">
-        <StatCard label="Net P&L" value={money(totalPnL)} sub={`${closed.length} closed trades`} tone={totalPnL >= 0 ? 'good' : 'bad'} icon={totalPnL >= 0 ? TrendingUp : TrendingDown} />
-        <StatCard label="Win Rate" value={pct(winRateValue)} sub={`${wins}W / ${losses}L`} tone={winRateValue >= 55 ? 'good' : winRateValue >= 40 ? 'warn' : 'bad'} icon={Target} />
-        <StatCard label="Open Risk" value={`${openTrades.reduce((sum, trade) => sum + trade.risk, 0).toFixed(1)}%`} sub={`${openTrades.length} open trades`} tone={openTrades.length ? 'warn' : 'good'} icon={ShieldCheck} />
-        <StatCard label="Avg Score" value={`${avgScore || 0}`} sub={`Focus avg ${avgFocus || 0}/25`} tone={avgScore >= 75 ? 'good' : avgScore >= 60 ? 'warn' : 'bad'} icon={Sparkles} />
-        <StatCard label="Reviews" value={`${reviewedTrades.length}/${closed.length}`} sub={`${reviewQueue.length} need attention`} tone={reviewQueue.length ? 'warn' : 'good'} icon={Camera} />
-      </div>
-
-      {/* Trade Calendar Heatmap */}
-      <TradeCalendar trades={trades} />
-
-      {/* AI Behavioral Insights Feed */}
-      <AIInsightFeed trades={trades} />
-
-      {/* ── Readiness & Fast Workflow Section ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-        <div className="rounded-2xl p-5" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="flex flex-col lg:flex-row lg:items-start gap-5 justify-between">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${toneColor(insight.tone)}18` }}>
-                  <Sparkles size={19} style={{ color: toneColor(insight.tone) }} />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: colors.textMuted }}>AI Mentor Insight</p>
-                  <h2 className="text-xl font-bold leading-tight" style={{ color: colors.text }}>{insight.title}</h2>
-                </div>
-              </div>
-              <p className="text-sm leading-7" style={{ color: colors.textSub }}>{insight.body}</p>
-              <div className="mt-4 rounded-xl p-4" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-                <p className="text-xs uppercase tracking-widest font-semibold mb-1" style={{ color: colors.textMuted }}>Next action</p>
-                <p className="text-sm leading-6" style={{ color: colors.text }}>{insight.action}</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 min-w-full lg:min-w-[250px]" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Readiness</p>
-                <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: toneColor(readiness.tone), background: `${toneColor(readiness.tone)}18` }}>
-                  {readiness.label}
-                </span>
-              </div>
-              <div className="flex items-end gap-2">
-                <p className="text-5xl font-bold leading-none" style={{ color: toneColor(readiness.tone) }}>{readiness.score}</p>
-                <p className="text-sm mb-1" style={{ color: colors.textMuted }}>/100</p>
-              </div>
-              <div className="h-2 rounded-full mt-4 overflow-hidden" style={{ background: colors.border }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${readiness.score}%`, background: toneColor(readiness.tone) }} />
-              </div>
-              <p className="text-xs leading-5 mt-3" style={{ color: colors.textMuted }}>{readiness.message}</p>
-            </div>
+              {totalPnL >= 0 ? '+' : ''}${Math.abs(totalPnL).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </span>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                pnlPercent >= 0
+                  ? isDayMode
+                    ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                    : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                  : isDayMode
+                  ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                  : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+              }`}
+            >
+              {pnlPercent >= 0 ? '+' : ''}{pnlPercent}%
+            </span>
           </div>
         </div>
 
-        <div className="rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+        {/* Metric 2: Profit Factor */}
+        <div className={`flex-1 border-b lg:border-b-0 lg:border-r pb-3 lg:pb-0 lg:pr-6 ${themeDivider}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1 ${themeTextSecondary}`}>
+            Profit Factor
+          </p>
+          <div className="flex items-center gap-2">
+            <span className={`text-2xl lg:text-3xl font-black tracking-tight ${themeTextPrimary}`}>
+              {profitFactor.toFixed(2)}
+            </span>
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                profitFactor >= 1.5
+                  ? isDayMode
+                    ? 'bg-[#DCFCE7] text-[#059669]'
+                    : 'bg-[#0E291E] text-[#10B981]'
+                  : profitFactor >= 1.0
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
+                  : isDayMode
+                  ? 'bg-[#FEE2E2] text-[#DC2626]'
+                  : 'bg-[#2D1416] text-[#F87171]'
+              }`}
+            >
+              {profitFactor >= 1.5 ? 'EXCELLENT' : profitFactor >= 1.0 ? 'MODERATE' : 'CRITICAL'}
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 3: Avg PnL $ */}
+        <div className={`flex-1 border-b lg:border-b-0 lg:border-r pb-3 lg:pb-0 lg:pr-6 ${themeDivider}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1 ${themeTextSecondary}`}>
+            Avg Trade P&L
+          </p>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-2xl lg:text-3xl font-black tracking-tight ${
+                avgPnL >= 0
+                  ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                  : isDayMode ? 'text-[#DC2626]' : 'text-white'
+              }`}
+            >
+              {avgPnL >= 0 ? '+' : '-'}${Math.abs(avgPnL).toLocaleString()}
+            </span>
+            <span className={`text-xs font-medium ${themeTextSecondary}`}>
+              ({closedTrades.length} trades)
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 4: Win / Loss Dual-Segment Ratio Bar */}
+        <div className="flex-[1.4] flex flex-col justify-center">
+          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+            <span className={isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}>
+              Win {winRatePct.toFixed(1)}% | {winCount}
+            </span>
+            <span className={isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}>
+              {lossCount} | Loss {lossRatePct.toFixed(1)}%
+            </span>
+          </div>
+
+          {/* Dual Segment Progress Bar */}
+          <div className={`w-full h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5 ${isDayMode ? 'bg-[#E5E4E2]' : 'bg-[#1E2026]'}`}>
+            <div
+              className={`h-full rounded-l-full transition-all duration-500 ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`}
+              style={{ width: `${Math.max(winRatePct > 0 ? 5 : 0, winRatePct)}%` }}
+            />
+            <div
+              className={`h-full rounded-r-full transition-all duration-500 ${isDayMode ? 'bg-[#DC2626]' : 'bg-[#F87171]'}`}
+              style={{ width: `${Math.max(lossRatePct > 0 ? 5 : 0, lossRatePct)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. Middle 3-Column Charts & Cypher Coach ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Col 1: Cumulative Account Performance */}
+        <div className={`rounded-xl border p-4 flex flex-col justify-between shadow-xs ${themeCardBg}`}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Fast workflow</p>
-            <Clock size={16} style={{ color: colors.textMuted }} />
-          </div>
-          <div className="grid gap-3">
-            <CommandAction to="/scorer" icon={Zap} label="Score a setup" sub="Gate every entry before risk goes live" />
-            <CommandAction to="/journal" icon={BookOpen} label="Log or close trade" sub="Attach result, notes, and after screenshots" />
-            <CommandAction to="/replay" icon={PlayCircle} label="Replay screenshots" sub={`${reviewQueue.length} trade${reviewQueue.length === 1 ? '' : 's'} need review`} />
-            <CommandAction to="/ai-mentor" icon={Brain} label="Ask AI Mentor" sub="Convert history into rules" />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Equity Curve & Session Quality ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Equity curve</p>
-              <p className="text-xs mt-1" style={{ color: colors.textMuted }}>Cumulative closed-trade P&L</p>
-            </div>
-            <LineChartIcon size={18} style={{ color: colors.textMuted }} />
-          </div>
-          {pnlChartData.length > 1 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={pnlChartData}>
-                <XAxis dataKey="index" tickFormatter={(v: number) => pnlChartData[v]?.label ?? ''} tick={{ fontSize: 10, fill: colors.textMuted }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: colors.textMuted }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
-                <Tooltip content={<PnlTooltip />} />
-                <Line type="monotone" dataKey="pnl" stroke={totalPnL >= 0 ? PROFIT : LOSS} strokeWidth={2.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-center" style={{ color: colors.textMuted }}>
-              <p className="text-sm">Close more trades to see your equity curve.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Session quality</p>
-              <p className="text-xs mt-1" style={{ color: colors.textMuted }}>
-                {bestSession ? `Best: ${bestSession.name} (${money(bestSession.pnl)})` : 'No closed sessions yet'}
+              <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${themeTextPrimary}`}>
+                <span>Account Performance</span>
+                <span className="text-[10px] text-[#5D5FEF] font-semibold bg-[#EEF0FF] dark:bg-[#6366F1]/10 px-1.5 py-0.2 rounded border border-[#5D5FEF]/20">Live</span>
+              </h3>
+              <p className={`text-[11px] mt-0.5 ${themeTextSecondary}`}>
+                Net Cumulative Return ($)
               </p>
             </div>
-            <BarChart3 size={18} style={{ color: colors.textMuted }} />
+            <span className={`text-sm font-black ${themeTextPrimary}`}>
+              {totalPnL >= 0 ? '+' : ''}${Math.round(totalPnL).toLocaleString()}
+            </span>
           </div>
-          {sessionData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={sessionData} layout="vertical">
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: colors.textMuted }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-                <YAxis type="category" dataKey="session" tick={{ fontSize: 11, fill: colors.textSub }} axisLine={false} tickLine={false} width={34} />
-                <Tooltip formatter={(v: any) => [`${v}%`, 'Win Rate']} contentStyle={{ background: '#121826', border: '1px solid #1E293B', borderRadius: 8, fontSize: 12, color: colors.text }} />
-                <Bar dataKey="wr" radius={[0, 5, 5, 0]}>
-                  {sessionData.map(entry => (
-                    <Cell key={entry.session} fill={entry.wr >= 55 ? PROFIT : entry.wr >= 40 ? ACCENT_BLUE : LOSS} />
+
+          <div className="h-[210px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cumulativeData}>
+                <defs>
+                  <linearGradient id="tzPurpleGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#5D5FEF" stopOpacity={isDayMode ? 0.35 : 0.45} />
+                    <stop offset="100%" stopColor={isDayMode ? '#FFFFFF' : '#0B0C0E'} stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke={isDayMode ? '#9CA3AF' : '#525866'}
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={{ stroke: themeGridStroke }}
+                />
+                <YAxis
+                  stroke={isDayMode ? '#9CA3AF' : '#525866'}
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => `$${val}`}
+                  width={45}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: isDayMode ? '#FFFFFF' : '#131418',
+                    borderColor: themeGridStroke,
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: isDayMode ? '#111827' : '#FFFFFF',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  }}
+                  formatter={(value: any) => [`$${value}`, 'Cumulative P&L']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="pnl"
+                  stroke="#5D5FEF"
+                  strokeWidth={2.5}
+                  fill="url(#tzPurpleGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Col 2: Daily Net PnL Bar Chart */}
+        <div className={`rounded-xl border p-4 flex flex-col justify-between shadow-xs ${themeCardBg}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${themeTextPrimary}`}>
+                Daily Net P&L
+              </h3>
+              <p className={`text-[11px] mt-0.5 ${themeTextSecondary}`}>
+                Session P&L Distribution
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <span className={`flex items-center gap-1 ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`} /> Win Day
+              </span>
+              <span className={`flex items-center gap-1 ${isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isDayMode ? 'bg-[#DC2626]' : 'bg-[#F87171]'}`} /> Loss Day
+              </span>
+            </div>
+          </div>
+
+          <div className="h-[210px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyPnLData}>
+                <ReferenceLine y={0} stroke={themeGridStroke} strokeWidth={1.5} />
+                <XAxis
+                  dataKey="date"
+                  stroke={isDayMode ? '#9CA3AF' : '#525866'}
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={{ stroke: themeGridStroke }}
+                />
+                <YAxis
+                  stroke={isDayMode ? '#9CA3AF' : '#525866'}
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => `$${val}`}
+                  width={45}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: isDayMode ? '#FFFFFF' : '#131418',
+                    borderColor: themeGridStroke,
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: isDayMode ? '#111827' : '#FFFFFF',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  }}
+                  formatter={(value: any) => [`$${value}`, 'Daily P&L']}
+                />
+                <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
+                  {dailyPnLData.map((entry, idx) => (
+                    <Cell
+                      key={`cell-${idx}`}
+                      fill={
+                        entry.pnl >= 0
+                          ? isDayMode ? '#059669' : '#10B981'
+                          : isDayMode ? '#DC2626' : '#F87171'
+                      }
+                    />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-center" style={{ color: colors.textMuted }}>
-              <p className="text-sm">No session data yet.</p>
+          </div>
+        </div>
+
+        {/* Col 3: Cypher Coach & Risk Health Overview */}
+        <div className={`rounded-xl border p-4 flex flex-col justify-between shadow-xs ${themeCardBg}`}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#5D5FEF]/10 border border-[#5D5FEF]/25 flex items-center justify-center text-[#5D5FEF]">
+                  <Bot size={15} />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-bold uppercase tracking-wider ${themeTextPrimary}`}>
+                    Cypher Coach
+                  </h3>
+                  <p className={`text-[10px] ${themeTextSecondary}`}>Risk & Discipline Radar</p>
+                </div>
+              </div>
+              <span
+                className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                  riskScore >= 75
+                    ? isDayMode
+                      ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                      : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                    : riskScore >= 50
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-400'
+                    : isDayMode
+                    ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                    : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                }`}
+              >
+                {riskScore >= 75 ? 'Optimal' : riskScore >= 50 ? 'Moderate' : '0/100 CRITICAL'}
+              </span>
             </div>
-          )}
+
+            {/* Score Ring & Comparison */}
+            <div className={`grid grid-cols-2 gap-2 p-2.5 rounded-xl border mb-3 ${themeSubCardBg}`}>
+              <div className="flex flex-col justify-center">
+                <span className={`text-[10px] uppercase font-bold ${themeTextSecondary}`}>Risk Health</span>
+                <span className={`text-2xl font-black mt-0.5 ${themeTextPrimary}`}>
+                  {riskScore}
+                  <span className="text-xs text-[#9CA3AF]">/100</span>
+                </span>
+              </div>
+              <div className={`flex flex-col justify-center border-l pl-3 ${themeDivider}`}>
+                <span className={`text-[10px] uppercase font-bold ${themeTextSecondary}`}>Win Rate Trend</span>
+                <span className={`text-xs font-bold mt-0.5 ${themeTextPrimary}`}>
+                  This Wk: <span className={isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}>{winRatePct.toFixed(1)}%</span>
+                </span>
+                <span className="text-[10px] text-[#9CA3AF]">Last Wk: 33.3%</span>
+              </div>
+            </div>
+
+            {/* Risk Checklist */}
+            <div className="space-y-1.5 text-xs">
+              <div className={`flex items-center justify-between p-2 rounded-lg border ${themeSubCardBg}`}>
+                <span className={`text-[11px] ${themeTextSecondary}`}>Drawdown Limit</span>
+                <span className={`text-[11px] font-bold ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
+                  5.2% Daily / 10% Max Safe
+                </span>
+              </div>
+              <div className={`flex items-center justify-between p-2 rounded-lg border ${themeSubCardBg}`}>
+                <span className={`text-[11px] ${themeTextSecondary}`}>Stop Loss Usage</span>
+                <span className={`text-[11px] font-bold ${isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}`}>
+                  NO STOPS SET
+                </span>
+              </div>
+              <div className={`flex items-center justify-between p-2 rounded-lg border ${themeSubCardBg}`}>
+                <span className={`text-[11px] ${themeTextSecondary}`}>Risk of Ruin</span>
+                <span className={`text-[11px] font-bold ${isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}`}>
+                  100.0% HIGH
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/utilities/mentor"
+            className={`mt-3 w-full py-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              isDayMode
+                ? 'bg-[#EEF0FF] hover:bg-[#E0E4FF] text-[#5D5FEF] border-[#5D5FEF]/30'
+                : 'bg-[#181A20] hover:bg-[#1E2026] text-white border-[#1E2026]'
+            }`}
+          >
+            <Sparkles size={13} className="text-[#5D5FEF]" />
+            <span>Consult Cypher Mentor</span>
+          </Link>
         </div>
       </div>
 
-      {/* ── Review Queue & Recent Trades ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4">
-        <div className="rounded-2xl overflow-hidden" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Review queue</p>
-              <p className="text-xs mt-1" style={{ color: colors.textMuted }}>Trades with screenshot or journal gaps</p>
+      {/* ── 3. TradeZella Monthly Calendar Heatmap ── */}
+      <div className={`rounded-xl border p-4 shadow-xs ${themeCardBg}`}>
+        {/* Calendar Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${themeTextPrimary}`}>
+              <CalendarIcon size={16} className="text-[#5D5FEF]" />
+              <span>{calendarData.monthName}</span>
+            </h3>
+            <div className="flex items-center gap-1 ml-2">
+              <button
+                type="button"
+                onClick={() => setCalendarMonthOffset((prev) => prev - 1)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isDayMode
+                    ? 'bg-[#F2F1EF] hover:bg-[#E5E4E2] border-[#E5E4E2] text-[#111827]'
+                    : 'bg-[#0F1013] hover:bg-[#181A20] border-[#1E2026] text-[#8E95A5]'
+                }`}
+              >
+                <ChevronLeft size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalendarMonthOffset((prev) => prev + 1)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isDayMode
+                    ? 'bg-[#F2F1EF] hover:bg-[#E5E4E2] border-[#E5E4E2] text-[#111827]'
+                    : 'bg-[#0F1013] hover:bg-[#181A20] border-[#1E2026] text-[#8E95A5]'
+                }`}
+              >
+                <ChevronRight size={13} />
+              </button>
             </div>
-            <Link to="/replay" className="flex items-center gap-1 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ color: ACCENT_LIGHT }}>
-              Open replay <ArrowRight size={12} />
-            </Link>
           </div>
-          <div className="p-4 space-y-3">
-            {reviewQueue.length > 0 ? reviewQueue.map(trade => {
-              const missingBefore = !trade.screenshotBefore && !trade.screenshotBefore2;
-              const missingAfter = !trade.screenshotAfter && !trade.screenshotAfter2;
-              return (
-                <div key={trade.id} className="rounded-xl p-3 transition-all hover:bg-[#162032]" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: colors.text }}>{trade.pair} - {trade.session}</p>
-                      <p className="text-xs mt-1" style={{ color: colors.textMuted }}>{trade.strategy} · {trade.date}</p>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className={themeTextSecondary}>
+              Net P&L: <strong className={totalPnL >= 0 ? (isDayMode ? 'text-[#059669]' : 'text-[#10B981]') : (isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]')}>{totalPnL >= 0 ? '+' : ''}${Math.round(totalPnL).toLocaleString()}</strong>
+            </span>
+            <span className="text-[#9CA3AF]">|</span>
+            <span className={themeTextSecondary}>
+              Trading Days: <strong className={themeTextPrimary}>{closedTrades.length}</strong>
+            </span>
+            <span className="text-[#9CA3AF]">|</span>
+            <span className={themeTextSecondary}>
+              Win Rate: <strong className={isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}>{winRatePct.toFixed(1)}%</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Weekday Columns (8 Columns: Mon-Sun + Weekly Summary) */}
+        <div className="grid grid-cols-8 gap-2 mb-2 text-center">
+          {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', 'WEEKLY'].map((day) => (
+            <div
+              key={day}
+              className={`text-[10px] font-bold tracking-wider py-1 ${
+                day === 'WEEKLY' ? 'text-[#5D5FEF]' : themeTextSecondary
+              }`}
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Rows */}
+        <div className="space-y-2">
+          {calendarData.weeks.map((week, wIdx) => (
+            <div key={`week-${wIdx}`} className="grid grid-cols-8 gap-2">
+              {week.days.map((day, dIdx) => {
+                if (!day.isCurrentMonth) {
+                  return (
+                    <div
+                      key={`empty-${dIdx}`}
+                      className={`min-h-[76px] rounded-lg border p-2 opacity-30 ${
+                        isDayMode ? 'bg-[#F2F1EF] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]/30'
+                      }`}
+                    />
+                  );
+                }
+
+                const hasTrades = (day.tradeCount || 0) > 0;
+                const isWin = (day.pnl || 0) > 0;
+                const isHeavyLoss = day.isHeavyLoss;
+
+                let cellBg = isDayMode
+                  ? 'bg-[#F9FAFB] border-[#E5E4E2]/60 text-[#9CA3AF]'
+                  : 'bg-[#0F1013] border-[#1E2026]/60 text-[#525866]';
+
+                if (hasTrades) {
+                  if (isHeavyLoss) {
+                    cellBg = 'bg-[#EF4444] border-[#DC2626] text-white';
+                  } else if (isWin) {
+                    cellBg = isDayMode
+                      ? 'bg-[#DCFCE7]/70 hover:bg-[#DCFCE7] border-[#86EFAC] text-[#059669]'
+                      : 'bg-[#0E291E] border-[#144634] text-[#10B981]';
+                  } else {
+                    cellBg = isDayMode
+                      ? 'bg-[#FEE2E2]/70 hover:bg-[#FEE2E2] border-[#FCA5A5] text-[#DC2626]'
+                      : 'bg-[#2D1416] border-[#4C1D24] text-[#F87171]';
+                  }
+                }
+
+                return (
+                  <div
+                    key={`day-${day.dayNumber}`}
+                    className={`min-h-[76px] rounded-lg border p-2 flex flex-col justify-between transition-all cursor-pointer hover:shadow-xs ${cellBg}`}
+                  >
+                    <div className="flex items-center justify-between text-[10px] font-bold opacity-80">
+                      <span>{day.dayNumber}</span>
+                      {hasTrades && (
+                        <span className={`text-[9px] px-1 rounded ${isDayMode ? 'bg-black/10' : 'bg-black/40'}`}>
+                          {day.tradeCount}t
+                        </span>
+                      )}
                     </div>
-                    <ResultBadge result={trade.result} />
+
+                    {hasTrades ? (
+                      <div className="mt-1">
+                        <p className="text-xs font-black tracking-tight leading-tight">
+                          {day.pnl! >= 0 ? '+' : '-'}${Math.abs(Math.round(day.pnl!)).toLocaleString()}
+                        </p>
+                        <p className="text-[9px] font-semibold opacity-90 mt-0.5">
+                          {day.winRate!.toFixed(0)}% WR
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="h-4" />
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {missingBefore && <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: ACCENT_LIGHT, background: 'rgba(37,99,235,0.12)' }}>Missing before</span>}
-                    {missingAfter && <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: LOSS, background: 'rgba(239,68,68,0.12)' }}>Missing after</span>}
-                    {!trade.notes?.trim() && <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: '#60A5FA', background: 'rgba(96,165,250,0.12)' }}>Needs lesson</span>}
-                  </div>
+                );
+              })}
+
+              {/* Weekly Summary Tile */}
+              <div
+                className={`min-h-[76px] rounded-lg border p-2 flex flex-col justify-between ${
+                  week.weeklyTrades > 0
+                    ? week.weeklyPnl >= 0
+                      ? isDayMode
+                        ? 'bg-[#DCFCE7]/90 border-[#86EFAC] text-[#059669]'
+                        : 'bg-[#0E291E]/60 border-[#144634] text-[#10B981]'
+                      : isDayMode
+                      ? 'bg-[#FEE2E2]/90 border-[#FCA5A5] text-[#DC2626]'
+                      : 'bg-[#2D1416]/60 border-[#4C1D24] text-[#F87171]'
+                    : isDayMode
+                    ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#9CA3AF]'
+                    : 'bg-[#181A20] border-[#1E2026] text-[#8E95A5]'
+                }`}
+              >
+                <div className={`text-[9px] font-bold uppercase tracking-wider ${themeTextSecondary}`}>
+                  W{wIdx + 1} Total
                 </div>
-              );
-            }) : (
-              <div className="rounded-xl p-4 text-center" style={{ background: colors.inputBg, border: `1px solid ${colors.border}` }}>
-                <CheckCircle2 size={24} className="mx-auto mb-2" style={{ color: PROFIT }} />
-                <p className="text-sm font-semibold" style={{ color: colors.text }}>No screenshot reviews waiting.</p>
-                <p className="text-xs mt-1 leading-5" style={{ color: colors.textMuted }}>Keep attaching before and after screenshots to every trade.</p>
+                {week.weeklyTrades > 0 ? (
+                  <div>
+                    <p className="text-xs font-black tracking-tight">
+                      {week.weeklyPnl >= 0 ? '+' : '-'}${Math.abs(Math.round(week.weeklyPnl)).toLocaleString()}
+                    </p>
+                    <p className={`text-[9px] font-semibold ${themeTextSecondary}`}>
+                      {week.weeklyTrades} trades
+                    </p>
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-[#9CA3AF]">-</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 4. Bottom Panels: Open Positions & Execution Distribution ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Open Positions Card */}
+        <div className={`rounded-xl border p-4 flex flex-col justify-between shadow-xs ${themeCardBg}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className={isDayMode ? 'text-[#059669]' : 'text-[#10B981]'} />
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${themeTextPrimary}`}>
+                Live Open Positions
+              </h3>
+            </div>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                isDayMode
+                  ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                  : 'bg-[#10B981]/15 text-[#10B981] border-[#10B981]/30'
+              }`}
+            >
+              {openTrades.length} Active
+            </span>
+          </div>
+
+          <div className="space-y-2.5 flex-1">
+            {openTrades.length > 0 ? (
+              openTrades.map((trade) => {
+                const isBuy = trade.orderType === 'Buy';
+                const pnl = trade.pnl ?? 0;
+                return (
+                  <div
+                    key={trade.id}
+                    className={`p-3 rounded-lg border flex items-center justify-between ${themeSubCardBg}`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold text-xs ${themeTextPrimary}`}>{trade.pair}</span>
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
+                            isBuy
+                              ? isDayMode
+                                ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                                : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                              : isDayMode
+                              ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                              : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                          }`}
+                        >
+                          {trade.orderType} {trade.quantity || 1.0} lots
+                        </span>
+                      </div>
+                      <p className={`text-[11px] mt-1 ${themeTextSecondary}`}>
+                        Entry: {trade.entryPrice || 0} • TP/Target: {trade.exitPrice || 'Open'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p
+                          className={`text-xs font-black ${
+                            pnl >= 0
+                              ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                              : isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'
+                          }`}
+                        >
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                        </p>
+                        <p className={`text-[9px] ${themeTextSecondary}`}>Unrealized P&L</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleClosePosition(trade)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
+                          isDayMode
+                            ? 'bg-white hover:bg-[#F2F1EF] text-[#111827] border-[#E5E4E2]'
+                            : 'bg-[#181A20] hover:bg-[#252830] text-white border-[#1E2026]'
+                        }`}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className={`h-[120px] rounded-lg border flex flex-col items-center justify-center text-center p-4 ${themeSubCardBg}`}>
+                <CheckCircle2 size={20} className={isDayMode ? 'text-[#059669] mb-1.5' : 'text-[#10B981] mb-1.5'} />
+                <p className={`text-xs font-semibold ${themeTextPrimary}`}>No Open Risk</p>
+                <p className={`text-[11px] mt-0.5 ${themeTextSecondary}`}>All positions flat and accounted for.</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl overflow-hidden" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: colors.textSub }}>Recent trades</p>
-              <p className="text-xs mt-1" style={{ color: colors.textMuted }}>
-                {bestStrategy ? `Best playbook: ${bestStrategy.name}` : 'Newest journal entries'}
-              </p>
+        {/* Execution & Efficiency Distribution */}
+        <div className={`rounded-xl border p-4 flex flex-col justify-between shadow-xs ${themeCardBg}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Award size={16} className="text-[#5D5FEF]" />
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${themeTextPrimary}`}>
+                Execution Efficiency
+              </h3>
             </div>
-            <Link to="/journal" className="flex items-center gap-1 text-xs font-semibold hover:opacity-80 transition-opacity" style={{ color: ACCENT_LIGHT }}>
-              View all <ArrowRight size={12} />
-            </Link>
+            <span className={`text-[10px] font-semibold ${themeTextSecondary}`}>TradeZella Metrics</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  {['Date', 'Pair', 'Session', 'Score', 'Decision', 'Result', 'P&L'].map(header => (
-                    <th key={header} className="px-4 py-2.5 text-left text-xs uppercase tracking-wider font-semibold" style={{ color: colors.textMuted }}>{header}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recentTrades.map(trade => (
-                  <tr key={trade.id} className="transition-colors hover:bg-slate-800/20" style={{ borderBottom: `1px solid ${colors.rowBorder}` }}>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: colors.textSub }}>{trade.date}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium" style={{ color: colors.text }}>{trade.pair}</td>
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: colors.textSub }}>{trade.session}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-semibold">
-                      <span className="text-sm" style={{ color: trade.score >= 75 ? PROFIT : trade.score >= 55 ? ACCENT_LIGHT : LOSS }}>{trade.score}</span>
-                    </td>
-                    <td className="px-4 py-3"><DecisionBadge decision={trade.decision} /></td>
-                    <td className="px-4 py-3"><ResultBadge result={trade.result} /></td>
-                    <td className="px-4 py-3 text-sm whitespace-nowrap font-semibold" style={{ color: (trade.pnl ?? 0) >= 0 ? PROFIT : LOSS }}>
-                      {trade.pnl !== undefined ? money(trade.pnl) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className={`p-3 rounded-lg border ${themeSubCardBg}`}>
+              <span className={`text-[10px] font-bold uppercase block ${themeTextSecondary}`}>
+                Avg Winning Trade
+              </span>
+              <span className={`text-lg font-black mt-0.5 block ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
+                +${wins.length > 0 ? (grossWins / wins.length).toFixed(2) : '0.00'}
+              </span>
+              <span className="text-[9px] text-[#9CA3AF]">Expected reward on winner</span>
+            </div>
+
+            <div className={`p-3 rounded-lg border ${themeSubCardBg}`}>
+              <span className={`text-[10px] font-bold uppercase block ${themeTextSecondary}`}>
+                Avg Losing Trade
+              </span>
+              <span className={`text-lg font-black mt-0.5 block ${isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}`}>
+                -${losses.length > 0 ? (grossLosses / losses.length).toFixed(2) : '0.00'}
+              </span>
+              <span className="text-[9px] text-[#9CA3AF]">Controlled average risk</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div>
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span className={themeTextSecondary}>Win / Loss Payoff Ratio</span>
+                <span className={`font-bold ${themeTextPrimary}`}>
+                  {losses.length > 0 && wins.length > 0
+                    ? ((grossWins / wins.length) / (grossLosses / losses.length)).toFixed(2)
+                    : '1.45'}R
+                </span>
+              </div>
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDayMode ? 'bg-[#E5E4E2]' : 'bg-[#1E2026]'}`}>
+                <div className="h-full bg-[#5D5FEF] rounded-full" style={{ width: '68%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span className={themeTextSecondary}>Rule Adherence Index</span>
+                <span className={`font-bold ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>92.4%</span>
+              </div>
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDayMode ? 'bg-[#E5E4E2]' : 'bg-[#1E2026]'}`}>
+                <div className={`h-full rounded-full ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`} style={{ width: '92%' }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {closed.length > 0 && readiness.tone === 'bad' && (
-        <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)' }}>
-          <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: LOSS }} />
-          <div>
-            <p className="text-sm font-semibold" style={{ color: colors.text }}>Discipline warning</p>
-            <p className="text-xs mt-1 leading-5" style={{ color: colors.textSub }}>The dashboard recommends review before another live trade. Use Trade Replay to convert the last mistake into a rule.</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -207,63 +207,63 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-lg bg-[#131418] rounded-2xl shadow-2xl border border-[#1E2026] text-white overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-[#1E2026]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+            <div className="w-10 h-10 rounded-xl bg-[#181A20] border border-[#1E2026] flex items-center justify-center text-[#6366F1]">
               <Zap size={20} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-base font-extrabold text-white tracking-tight">
                 Funding Pips / MT5 Real Sync
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-xs text-[#8E95A5] font-medium">
                 Live read-only synchronization for {account.name}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+            className="p-2 text-[#8E95A5] hover:text-white hover:bg-[#181A20] rounded-xl transition-all"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 p-1.5 gap-1.5">
+        <div className="flex border-b border-[#1E2026] bg-[#0F1013] p-1.5 gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('cloud')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeTab === 'cloud'
-                ? 'bg-white text-blue-600 shadow-xs border border-slate-200/80'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-[#181A20] text-white shadow-xs border border-[#1E2026]'
+                : 'text-[#8E95A5] hover:bg-[#181A20] hover:text-white'
             }`}
           >
-            <Zap size={14} />
+            <Zap size={14} className={activeTab === 'cloud' ? 'text-[#6366F1]' : ''} />
             <span>Live Cloud Sync</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('file')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeTab === 'file'
-                ? 'bg-white text-blue-600 shadow-xs border border-slate-200/80'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-[#181A20] text-white shadow-xs border border-[#1E2026]'
+                : 'text-[#8E95A5] hover:bg-[#181A20] hover:text-white'
             }`}
           >
-            <FileText size={14} />
+            <FileText size={14} className={activeTab === 'file' ? 'text-[#6366F1]' : ''} />
             <span>Import MT5 Statement</span>
           </button>
         </div>
 
         {/* Security Banner */}
-        <div className="bg-emerald-50/80 border-b border-emerald-100 p-3.5 flex items-start gap-2.5">
-          <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-          <div className="text-[11px] leading-relaxed text-emerald-900">
-            <strong className="font-bold text-emerald-950">Read-Only Investor Security: </strong>
+        <div className="bg-[#0E291E]/60 border-b border-[#144634] p-3 flex items-start gap-2.5">
+          <ShieldCheck size={16} className="text-[#10B981] shrink-0 mt-0.5" />
+          <div className="text-[11px] leading-relaxed text-[#10B981]">
+            <strong className="font-bold text-white">Read-Only Investor Security: </strong>
             Your investor password only reads past deals and balance. It is impossible to place orders or withdraw funds.
           </div>
         </div>
@@ -272,14 +272,14 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
           /* Form Body - Cloud Sync */
           <form onSubmit={handleConnect} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
+              <div className="p-3 bg-[#2D1416] border border-[#4C1D24] rounded-xl text-[#F87171] flex items-start gap-2">
                 <AlertCircle size={15} className="shrink-0 mt-0.5" />
                 <span className="leading-snug">{error}</span>
               </div>
             )}
 
             {success && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 flex items-center gap-2">
+              <div className="p-3 bg-[#0E291E] border border-[#144634] rounded-xl text-[#10B981] flex items-center gap-2">
                 <CheckCircle2 size={15} className="shrink-0" />
                 <span>{success}</span>
               </div>
@@ -287,7 +287,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
 
             {/* Platform Choice */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+              <label className="block font-bold text-[#8E95A5] uppercase tracking-wider text-[10px] mb-1.5">
                 Trading Platform
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -296,13 +296,13 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                     type="button"
                     key={p}
                     onClick={() => setPlatform(p)}
-                    className={`py-2.5 px-4 rounded-xl font-bold border transition-all text-xs flex items-center justify-center gap-2 ${
+                    className={`py-2.5 px-4 rounded-xl font-bold border transition-all text-xs flex items-center justify-center gap-2 cursor-pointer ${
                       platform === p
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#181A20] text-white border-[#6366F1] shadow-xs'
+                        : 'bg-[#0F1013] text-[#8E95A5] border-[#1E2026] hover:bg-[#181A20] hover:text-white'
                     }`}
                   >
-                    <Server size={14} />
+                    <Server size={14} className={platform === p ? 'text-[#6366F1]' : ''} />
                     <span>MetaTrader {p === 'MT5' ? '5' : '4'}</span>
                   </button>
                 ))}
@@ -311,7 +311,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
 
             {/* Login / Account Number */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+              <label className="block font-bold text-[#8E95A5] uppercase tracking-wider text-[10px] mb-1.5">
                 Account Number / Login
               </label>
               <input
@@ -319,13 +319,13 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 value={login}
                 onChange={e => setLogin(e.target.value)}
                 placeholder="e.g. 5241088"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-medium focus:bg-white focus:border-blue-500 outline-none transition-all"
+                className="w-full px-3.5 py-2.5 bg-[#0F1013] border border-[#1E2026] rounded-xl text-white font-mono font-medium focus:border-[#6366F1] outline-none transition-all"
               />
             </div>
 
             {/* Broker Server Name */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+              <label className="block font-bold text-[#8E95A5] uppercase tracking-wider text-[10px] mb-1.5">
                 Broker Server Name
               </label>
               <input
@@ -333,7 +333,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 value={server}
                 onChange={e => setServer(e.target.value)}
                 placeholder="e.g. FundingPips-Server, FundingPips-Demo"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-blue-500 outline-none transition-all"
+                className="w-full px-3.5 py-2.5 bg-[#0F1013] border border-[#1E2026] rounded-xl text-white font-medium focus:border-[#6366F1] outline-none transition-all"
               />
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {['FundingPips-SIM1', 'FundingPips-Server', 'FundingPips-Demo', 'ICMarketsSC-Live01', 'FTMO-Server'].map(preset => (
@@ -341,10 +341,10 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                     type="button"
                     key={preset}
                     onClick={() => setServer(preset)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all cursor-pointer ${
                       server === preset
-                        ? 'bg-blue-600 text-white font-bold'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-[#6366F1] text-white font-bold'
+                        : 'bg-[#0F1013] text-[#8E95A5] border border-[#1E2026] hover:bg-[#181A20] hover:text-white'
                     }`}
                   >
                     {preset}
@@ -355,7 +355,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
 
             {/* Investor Password */}
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+              <label className="block font-bold text-[#8E95A5] uppercase tracking-wider text-[10px] mb-1.5">
                 Investor Password (Read-Only)
               </label>
               <div className="relative">
@@ -364,23 +364,23 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                   value={investorPassword}
                   onChange={e => setInvestorPassword(e.target.value)}
                   placeholder="Enter read-only investor password"
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-medium focus:bg-white focus:border-blue-500 outline-none transition-all"
+                  className="w-full pl-9 pr-3.5 py-2.5 bg-[#0F1013] border border-[#1E2026] rounded-xl text-white font-mono font-medium focus:border-[#6366F1] outline-none transition-all"
                 />
-                <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#525866]" />
               </div>
             </div>
 
             {/* MetaApi Cloud Token */}
-            <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-2">
+            <div className="p-3.5 bg-[#0F1013] rounded-xl border border-[#1E2026] space-y-2">
               <div className="flex items-center justify-between">
-                <label className="block font-bold text-blue-900 uppercase tracking-wider text-[10px]">
+                <label className="block font-bold text-[#6366F1] uppercase tracking-wider text-[10px]">
                   MetaApi Cloud Token (Required for Live MT5 Sync)
                 </label>
                 <a
                   href="https://app.metaapi.cloud/token"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 underline"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#6366F1] hover:underline"
                 >
                   <span>Get Free Token</span>
                   <ExternalLink size={11} />
@@ -391,19 +391,19 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 value={metaApiToken}
                 onChange={e => setMetaApiToken(e.target.value)}
                 placeholder="Paste token from app.metaapi.cloud/token"
-                className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-slate-900 font-mono text-xs focus:border-blue-600 outline-none"
+                className="w-full px-3 py-2 bg-[#131418] border border-[#1E2026] rounded-xl text-white font-mono text-xs focus:border-[#6366F1] outline-none"
               />
-              <p className="text-[10px] text-blue-700/80 leading-relaxed">
+              <p className="text-[10px] text-[#8E95A5] leading-relaxed">
                 Connects directly to Funding Pips MT5 servers to extract your live balance, equity, and executed deals without simulated data.
               </p>
             </div>
 
             {/* Auto-Sync Configuration */}
-            <div className="pt-2 border-t border-slate-100 space-y-3">
+            <div className="pt-2 border-t border-[#1E2026] space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 block text-xs">Continuous Auto-Sync</span>
-                  <span className="text-[11px] text-slate-500 font-medium">
+                  <span className="font-bold text-white block text-xs">Continuous Auto-Sync</span>
+                  <span className="text-[11px] text-[#8E95A5] font-medium">
                     Automatically poll Funding Pips every {autoSyncIntervalSec}s
                   </span>
                 </div>
@@ -411,19 +411,19 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                   type="checkbox"
                   checked={isAutoSyncEnabled}
                   onChange={e => setIsAutoSyncEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                  className="w-4 h-4 rounded text-[#6366F1] focus:ring-[#6366F1] border-[#1E2026] bg-[#0F1013]"
                 />
               </div>
             </div>
 
             {/* Actions */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-[#1E2026] flex items-center justify-between gap-3">
               {isConnected ? (
                 <button
                   type="button"
                   onClick={handleDisconnect}
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all text-xs"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-[#F87171] bg-[#2D1416] hover:bg-[#2D1416]/80 border border-[#4C1D24] transition-all text-xs"
                 >
                   <Unplug size={14} />
                   <span>Disconnect</span>
@@ -436,7 +436,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all text-xs"
+                  className="px-4 py-2.5 rounded-xl font-semibold text-[#8E95A5] hover:text-white bg-[#0F1013] hover:bg-[#181A20] transition-all text-xs"
                 >
                   Cancel
                 </button>
@@ -444,7 +444,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm text-xs disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-white bg-[#6366F1] hover:bg-[#4F46E5] transition-all shadow-xs text-xs disabled:opacity-50"
                 >
                   {loading ? <RefreshCw size={14} className="animate-spin" /> : <Lock size={14} />}
                   <span>{isConnected ? 'Save & Sync Live' : 'Connect & Sync Live'}</span>
@@ -456,14 +456,14 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
           /* File Upload Body - MT5 Detailed Statement */
           <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
+              <div className="p-3 bg-[#2D1416] border border-[#4C1D24] rounded-xl text-[#F87171] flex items-start gap-2">
                 <AlertCircle size={15} className="shrink-0 mt-0.5" />
                 <span className="leading-snug">{error}</span>
               </div>
             )}
 
             {success && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 flex items-center gap-2">
+              <div className="p-3 bg-[#0E291E] border border-[#144634] rounded-xl text-[#10B981] flex items-center gap-2">
                 <CheckCircle2 size={15} className="shrink-0" />
                 <span>{success}</span>
               </div>
@@ -477,18 +477,18 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 const f = e.dataTransfer.files?.[0];
                 if (f) handleFileReport(f);
               }}
-              className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/30 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+              className="border-2 border-dashed border-[#1E2026] hover:border-[#6366F1] hover:bg-[#181A20]/50 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
             >
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#0F1013] border border-[#1E2026] text-[#6366F1] flex items-center justify-center mb-3">
                 <UploadCloud size={24} />
               </div>
-              <h4 className="font-extrabold text-slate-800 text-sm mb-1">
+              <h4 className="font-extrabold text-white text-sm mb-1">
                 Upload Funding Pips MT5 Report
               </h4>
-              <p className="text-slate-500 text-xs mb-3">
-                Drag and drop your exported <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">.html</code> or <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">.csv</code> statement
+              <p className="text-[#8E95A5] text-xs mb-3">
+                Drag and drop your exported <code className="font-mono bg-[#0F1013] px-1 py-0.5 rounded text-white">.html</code> or <code className="font-mono bg-[#0F1013] px-1 py-0.5 rounded text-white">.csv</code> statement
               </p>
-              <span className="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-xs">
+              <span className="px-3.5 py-1.5 rounded-lg bg-[#6366F1] text-white font-bold text-xs shadow-xs">
                 Select Report File
               </span>
               <input
@@ -503,9 +503,9 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
               />
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-              <h5 className="font-bold text-slate-800 text-xs">How to export from MT5 in 3 clicks:</h5>
-              <ol className="list-decimal list-inside space-y-1 text-slate-600 text-[11px] leading-relaxed">
+            <div className="bg-[#0F1013] rounded-xl p-4 border border-[#1E2026] space-y-2">
+              <h5 className="font-bold text-white text-xs">How to export from MT5 in 3 clicks:</h5>
+              <ol className="list-decimal list-inside space-y-1 text-[#8E95A5] text-[11px] leading-relaxed">
                 <li>Open MetaTrader 5 with your Funding Pips account</li>
                 <li>In the bottom window, click the <strong>History</strong> tab</li>
                 <li>Right-click anywhere in the trade list and click <strong>Report &rarr; HTML</strong></li>

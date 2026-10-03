@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
+import { useTheme } from '../../data/ThemeContext';
 
 interface AccountDrawdownChartProps {
   account: Account;
@@ -17,6 +18,7 @@ interface AccountDrawdownChartProps {
 }
 
 export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ account, trades }) => {
+  const { isDayMode } = useTheme();
   const chartData = useMemo(() => {
     const sortedTrades = [...trades]
       .filter(t => t.status === 'CLOSED')
@@ -67,36 +69,38 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
   const yMin = Math.floor(minBal * 0.98);
   const yMax = Math.ceil(maxBal * 1.02);
 
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const gridLineColor = isDayMode ? '#E5E4E2' : '#1E2026';
+
   return (
     <div
-      className="rounded-2xl p-6 bg-white border border-slate-200 shadow-sm"
-      style={{
-        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
-      }}
+      className={`rounded-xl p-5 border shadow-xs transition-all ${cardBg}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Balance & Equity Curve</h3>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+          <h3 className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>Balance & Equity Curve</h3>
+          <p className={`text-[11px] mt-0.5 font-medium ${textSecondary}`}>
             Account performance relative to starting capital (${initialBalance.toLocaleString()})
             {profitTarget ? `, profit target ($${profitTarget.toLocaleString()})` : ''}
             {isProp ? `, and drawdown floor ($${targetFloor.toLocaleString()})` : ''}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${isDayMode ? 'bg-[#EEF0FF] text-[#5D5FEF] border-[#5D5FEF]/30' : 'bg-[#181A20] text-white border-[#1E2026]'}`}>
+            <div className="w-2 h-2 rounded-full bg-[#5D5FEF]" />
             <span>Balance Curve</span>
           </div>
           {profitTarget && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <div className="w-3 h-0.5 bg-emerald-600" />
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${isDayMode ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]' : 'bg-[#0E291E] text-[#10B981] border-[#144634]'}`}>
+              <div className={`w-2.5 h-0.5 ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`} />
               <span>Target: ${profitTarget.toLocaleString()}</span>
             </div>
           )}
           {isProp && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
-              <div className="w-3 h-0.5 bg-red-600" />
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${isDayMode ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]' : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'}`}>
+              <div className={`w-2.5 h-0.5 ${isDayMode ? 'bg-[#DC2626]' : 'bg-[#F87171]'}`} />
               <span>Floor: ${targetFloor.toLocaleString()}</span>
             </div>
           )}
@@ -108,34 +112,34 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="blueBalanceGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
+                <stop offset="5%" stopColor="#5D5FEF" stopOpacity={0.4} />
+                <stop offset="95%" stopColor={isDayMode ? '#FFFFFF' : '#0B0C0E'} stopOpacity={0.0} />
               </linearGradient>
             </defs>
 
             <XAxis
               dataKey="label"
-              stroke="#64748b"
-              fontSize={11}
+              stroke={isDayMode ? '#9CA3AF' : '#525866'}
+              fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: '#e2e8f0' }}
+              axisLine={{ stroke: gridLineColor }}
             />
             <YAxis
               domain={[yMin, yMax]}
-              stroke="#64748b"
-              fontSize={11}
+              stroke={isDayMode ? '#9CA3AF' : '#525866'}
+              fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: '#e2e8f0' }}
+              axisLine={{ stroke: gridLineColor }}
               tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
+                backgroundColor: isDayMode ? '#FFFFFF' : '#131418',
+                border: `1px solid ${gridLineColor}`,
+                borderRadius: '8px',
                 fontSize: '12px',
-                color: '#0f172a',
-                boxShadow: '0 10px 25px rgba(15, 23, 42, 0.1)',
+                color: isDayMode ? '#111827' : '#FFFFFF',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
                 fontWeight: 600,
               }}
               formatter={(val: any, name: any) => {
@@ -151,11 +155,11 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
             {/* Starting Balance Line */}
             <ReferenceLine
               y={initialBalance}
-              stroke="#94a3b8"
+              stroke={isDayMode ? '#9CA3AF' : '#525866'}
               strokeDasharray="3 3"
               label={{
                 value: `Initial: $${initialBalance.toLocaleString()}`,
-                fill: '#64748b',
+                fill: isDayMode ? '#6B7280' : '#8E95A5',
                 fontSize: 10,
                 position: 'insideBottomLeft',
               }}
@@ -165,13 +169,13 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
             {profitTarget && (
               <ReferenceLine
                 y={profitTarget}
-                stroke="#16a34a"
+                stroke={isDayMode ? '#059669' : '#10B981'}
                 strokeDasharray="4 4"
                 label={{
                   value: `Target: $${profitTarget.toLocaleString()}`,
-                  fill: '#16a34a',
+                  fill: isDayMode ? '#059669' : '#10B981',
                   fontSize: 10,
-                  position: 'insideTopRight',
+                  position: 'insideTopLeft',
                 }}
               />
             )}
@@ -180,13 +184,13 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
             {isProp && (
               <ReferenceLine
                 y={targetFloor}
-                stroke="#dc2626"
+                stroke={isDayMode ? '#DC2626' : '#F87171'}
                 strokeDasharray="4 4"
                 label={{
-                  value: `Max Loss Floor: $${targetFloor.toLocaleString()}`,
-                  fill: '#dc2626',
+                  value: `Drawdown Floor: $${targetFloor.toLocaleString()}`,
+                  fill: isDayMode ? '#DC2626' : '#F87171',
                   fontSize: 10,
-                  position: 'insideBottomRight',
+                  position: 'insideBottomLeft',
                 }}
               />
             )}
@@ -194,11 +198,9 @@ export const AccountDrawdownChart: React.FC<AccountDrawdownChartProps> = ({ acco
             <Area
               type="monotone"
               dataKey="balance"
-              stroke="#2563eb"
+              stroke="#5D5FEF"
               strokeWidth={2.5}
               fill="url(#blueBalanceGrad)"
-              dot={{ r: 4, fill: '#2563eb', stroke: '#ffffff', strokeWidth: 2 }}
-              activeDot={{ r: 6, fill: '#1d4ed8' }}
             />
           </AreaChart>
         </ResponsiveContainer>

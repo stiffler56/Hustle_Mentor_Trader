@@ -8,11 +8,57 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  background-color: #EBEAE8;
+  color: #111827;
+}
+
+body {
+  background-color: #EBEAE8;
+  color: #111827;
+}
+
+html.dark {
+  background-color: #0B0C0E;
+  color: #FFFFFF;
+}
+
+html.dark body {
+  background-color: #0B0C0E;
+  color: #FFFFFF;
+}
+
+/* Custom scrollbars matching TradeZella theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E5E4E2;
+  border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1E2026;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D1D5DB;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #252830;
 }
 
 html.day-mode {
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
+  background-color: #EBEAE8;
+  color: #111827;
+}
+
+html.day-mode body {
+  background-color: #EBEAE8;
+  color: #111827;
 }
 
 /* ── Day mode global text sharpness ─────────────────────────────────────── */

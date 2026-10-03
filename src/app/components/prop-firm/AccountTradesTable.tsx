@@ -3,6 +3,7 @@ import { Plus, ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Minus, Link2
 import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
 import { useTradesContext } from '../../data/TradesContext';
+import { useTheme } from '../../data/ThemeContext';
 
 interface AccountTradesTableProps {
   account: Account;
@@ -16,6 +17,7 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
   onOpenQuickTrade,
 }) => {
   const { trades: allTrades, updateTrade } = useTradesContext();
+  const { isDayMode } = useTheme();
   const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS' | 'BE'>('ALL');
   const [showLinkModal, setShowLinkModal] = useState(false);
 
@@ -41,18 +43,22 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
     updateTrade(tradeId, { accountId: account.id });
   };
 
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const subCardBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const textMuted = isDayMode ? 'text-[#9CA3AF]' : 'text-[#525866]';
+  const divider = isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]';
+
   return (
     <div
-      className="rounded-2xl p-6 bg-white border border-slate-200 shadow-sm"
-      style={{
-        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
-      }}
+      className={`rounded-xl p-5 border shadow-xs transition-all ${cardBg}`}
     >
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b ${divider}`}>
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Account Trades Log</h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <h3 className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>Account Trades Log</h3>
+          <p className={`text-[11px] font-medium mt-0.5 ${textSecondary}`}>
             Trades executed under {account.name} ({account.accountNumber})
           </p>
         </div>
@@ -62,9 +68,13 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
             <button
               type="button"
               onClick={() => setShowLinkModal(!showLinkModal)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 transition-colors"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                isDayMode
+                  ? 'bg-white hover:bg-[#F2F1EF] text-[#6B7280] border-[#E5E4E2]'
+                  : 'bg-[#0F1013] hover:bg-[#181A20] text-[#8E95A5] border-[#1E2026]'
+              }`}
             >
-              <Link2 size={13} className="text-blue-600" />
+              <Link2 size={13} className="text-[#5D5FEF]" />
               <span>Link Existing ({unlinkedTrades.length})</span>
             </button>
           )}
@@ -72,7 +82,7 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
           <button
             type="button"
             onClick={onOpenQuickTrade}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-[#5D5FEF] hover:bg-[#4F51D8] transition-all shadow-xs cursor-pointer"
           >
             <Plus size={14} />
             <span>Log Trade</span>
@@ -82,50 +92,50 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Win Rate</span>
-          <span className="text-xl font-extrabold text-blue-600 font-mono">{winRate}%</span>
-          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>Win Rate</span>
+          <span className={`text-xl font-black font-mono ${textPrimary}`}>{winRate}%</span>
+          <span className={`text-[10px] font-medium block mt-0.5 ${textMuted}`}>
             {wins}W / {losses}L / {bes}BE
           </span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Realized P&L</span>
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>Realized P&L</span>
           <span
-            className="text-xl font-extrabold font-mono"
-            style={{ color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }}
+            className="text-xl font-black font-mono"
+            style={{ color: totalPnl >= 0 ? (isDayMode ? '#059669' : '#10B981') : (isDayMode ? '#DC2626' : '#F87171') }}
           >
             {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
           </span>
-          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">
+          <span className={`text-[10px] font-medium block mt-0.5 ${textMuted}`}>
             {closedTrades.length} closed trades
           </span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Average R:R</span>
-          <span className="text-xl font-extrabold text-blue-600 font-mono">1:{avgRR}</span>
-          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">Risk to Reward</span>
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>Average R:R</span>
+          <span className={`text-xl font-black font-mono ${textPrimary}`}>1:{avgRR}</span>
+          <span className={`text-[10px] font-medium block mt-0.5 ${textMuted}`}>Risk to Reward</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">Initial Balance</span>
-          <span className="text-xl font-extrabold text-blue-600 font-mono">
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>Initial Balance</span>
+          <span className={`text-xl font-black font-mono ${textPrimary}`}>
             ${account.initialBalance.toLocaleString()}
           </span>
-          <span className="text-[10px] font-medium text-slate-500 block mt-0.5">{account.platform} • {account.provider}</span>
+          <span className={`text-[10px] font-medium block mt-0.5 ${textMuted}`}>{account.platform} • {account.provider}</span>
         </div>
       </div>
 
       {/* Link Trades Drawer */}
       {showLinkModal && (
-        <div className="p-4 mb-5 rounded-2xl bg-blue-50/70 border border-blue-200">
+        <div className={`p-4 mb-5 rounded-xl border ${subCardBg}`}>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-              <Link2 size={13} className="text-blue-600" />
+            <h4 className={`text-xs font-bold flex items-center gap-1.5 ${textPrimary}`}>
+              <Link2 size={13} className="text-[#5D5FEF]" />
               Assign Existing Trades to this Account
             </h4>
             <button
               onClick={() => setShowLinkModal(false)}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+              className={`text-xs font-semibold hover:underline cursor-pointer ${textSecondary}`}
             >
               Close
             </button>
@@ -134,22 +144,22 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
             {unlinkedTrades.slice(0, 10).map(t => (
               <div
                 key={t.id}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 text-xs"
+                className={`flex items-center justify-between p-2.5 rounded-lg border text-xs ${isDayMode ? 'bg-white border-[#E5E4E2]' : 'bg-[#131418] border-[#1E2026]'}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900">{t.pair}</span>
-                  <span className="text-slate-500 font-medium">{t.orderType}</span>
-                  <span className="text-slate-400 font-mono">{t.date}</span>
+                  <span className={`font-bold ${textPrimary}`}>{t.pair}</span>
+                  <span className={textSecondary}>{t.orderType}</span>
+                  <span className={`font-mono ${textMuted}`}>{t.date}</span>
                   <span
                     className="font-mono font-bold"
-                    style={{ color: (t.pnl || 0) >= 0 ? '#16a34a' : '#dc2626' }}
+                    style={{ color: (t.pnl || 0) >= 0 ? (isDayMode ? '#059669' : '#10B981') : (isDayMode ? '#DC2626' : '#F87171') }}
                   >
                     {(t.pnl || 0) >= 0 ? '+' : ''}${t.pnl?.toFixed(2) || '0.00'}
                   </span>
                 </div>
                 <button
                   onClick={() => handleLinkTrade(t.id)}
-                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold"
+                  className="px-2.5 py-1 rounded-md bg-[#5D5FEF] hover:bg-[#4F51D8] text-white text-[11px] font-bold cursor-pointer"
                 >
                   Link
                 </button>
@@ -160,17 +170,16 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className={`flex items-center gap-1.5 mb-4 p-1 rounded-lg border w-fit ${isDayMode ? 'bg-[#F2F1EF] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]'}`}>
         {(['ALL', 'WIN', 'LOSS', 'BE'] as const).map(res => (
           <button
             key={res}
             onClick={() => setFilterResult(res)}
-            className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
-            style={{
-              background: filterResult === res ? '#eff6ff' : '#f8fafc',
-              color: filterResult === res ? '#2563eb' : '#64748b',
-              border: filterResult === res ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-            }}
+            className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              filterResult === res
+                ? isDayMode ? 'bg-white text-[#5D5FEF] shadow-xs' : 'bg-[#1E2026] text-white'
+                : textSecondary
+            }`}
           >
             {res} {res === 'ALL' ? `(${trades.length})` : ''}
           </button>
@@ -179,14 +188,14 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
 
       {/* Trades Table */}
       {filteredTrades.length === 0 ? (
-        <div className="text-center py-12 rounded-xl bg-slate-50 border border-slate-200">
-          <p className="text-sm font-semibold text-slate-700 mb-1">No trades logged for this account yet</p>
-          <p className="text-xs text-slate-500 mb-4 max-w-sm mx-auto font-medium">
+        <div className={`text-center py-12 rounded-xl border ${subCardBg}`}>
+          <p className={`text-xs font-semibold mb-1 ${textSecondary}`}>No trades logged for this account yet</p>
+          <p className={`text-[11px] mb-4 max-w-sm mx-auto font-medium ${textMuted}`}>
             Log your simulation or evaluation trades here to automatically calculate drawdown and profit metrics.
           </p>
           <button
             onClick={onOpenQuickTrade}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-[#5D5FEF] hover:bg-[#4F51D8] shadow-xs cursor-pointer"
           >
             <Plus size={14} />
             Log First Trade
@@ -196,89 +205,82 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-slate-500 border-b border-slate-200 font-semibold uppercase tracking-wider text-[11px]">
-                <th className="pb-3">Date</th>
-                <th className="pb-3">Pair / Direction</th>
-                <th className="pb-3">Session</th>
-                <th className="pb-3">Strategy</th>
-                <th className="pb-3">R:R</th>
-                <th className="pb-3">Score</th>
-                <th className="pb-3">Result</th>
-                <th className="pb-3 text-right">P&L ($)</th>
+              <tr className={`border-b font-semibold uppercase tracking-wider text-[10px] ${
+                isDayMode ? 'text-[#6B7280] border-[#E5E4E2]' : 'text-[#8E95A5] border-[#1E2026]'
+              }`}>
+                <th className="pb-2.5">Date</th>
+                <th className="pb-2.5">Pair / Direction</th>
+                <th className="pb-2.5">Session</th>
+                <th className="pb-2.5">Strategy</th>
+                <th className="pb-2.5">R:R</th>
+                <th className="pb-2.5">Score</th>
+                <th className="pb-2.5">Result</th>
+                <th className="pb-2.5 text-right">P&L ($)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
+            <tbody className={`divide-y font-medium ${isDayMode ? 'divide-[#E5E4E2]' : 'divide-[#1E2026]'}`}>
               {filteredTrades.map(trade => (
-                <tr key={trade.id} className="hover:bg-blue-50/40 transition-colors">
-                  <td className="py-3 text-slate-500 font-mono">{trade.date}</td>
-                  <td className="py-3 font-bold text-slate-900">
+                <tr key={trade.id} className={`transition-colors ${isDayMode ? 'hover:bg-[#F9FAFB]' : 'hover:bg-[#181A20]'}`}>
+                  <td className={`py-2.5 font-mono ${textSecondary}`}>{trade.date}</td>
+                  <td className={`py-2.5 font-bold ${textPrimary}`}>
                     <div className="flex items-center gap-1.5">
                       <span>{trade.pair}</span>
                       <span
-                        className="flex items-center text-[10px] px-1.5 py-0.5 rounded font-bold"
-                        style={{
-                          background: trade.orderType === 'Buy' ? '#f0fdf4' : '#fef2f2',
-                          color: trade.orderType === 'Buy' ? '#16a34a' : '#dc2626',
-                          border: `1px solid ${trade.orderType === 'Buy' ? '#bbf7d0' : '#fecaca'}`,
-                        }}
+                        className={`flex items-center text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                          trade.orderType === 'Buy'
+                            ? isDayMode
+                              ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                              : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                            : isDayMode
+                            ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                            : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                        }`}
                       >
                         {trade.orderType === 'Buy' ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                         {trade.orderType}
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 text-slate-600">{trade.session}</td>
-                  <td className="py-3 text-slate-800 font-semibold">{trade.strategy}</td>
-                  <td className="py-3 text-blue-600 font-mono font-bold">1:{trade.rrRatio}</td>
-                  <td className="py-3">
+                  <td className={`py-2.5 ${textSecondary}`}>{trade.session}</td>
+                  <td className={`py-2.5 font-medium ${textPrimary}`}>{trade.strategy}</td>
+                  <td className="py-2.5 text-[#5D5FEF] font-mono font-bold">1:{trade.rrRatio}</td>
+                  <td className="py-2.5">
                     <span
-                      className="px-2 py-0.5 rounded-full text-[11px] font-bold"
-                      style={{
-                        background: trade.score >= 20 ? '#eff6ff' : '#fffbeb',
-                        color: trade.score >= 20 ? '#2563eb' : '#d97706',
-                        border: `1px solid ${trade.score >= 20 ? '#bfdbfe' : '#fde68a'}`,
-                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        isDayMode ? 'bg-[#F2F1EF] text-[#111827] border-[#E5E4E2]' : 'bg-[#181A20] text-white border-[#1E2026]'
+                      }`}
                     >
                       {trade.score}/30
                     </span>
                   </td>
-                  <td className="py-3">
+                  <td className="py-2.5">
                     <span
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold"
-                      style={{
-                        background:
-                          trade.result === 'WIN'
-                            ? '#f0fdf4'
-                            : trade.result === 'LOSS'
-                            ? '#fef2f2'
-                            : '#eff6ff',
-                        color:
-                          trade.result === 'WIN'
-                            ? '#16a34a'
-                            : trade.result === 'LOSS'
-                            ? '#dc2626'
-                            : '#2563eb',
-                        border: `1px solid ${
-                          trade.result === 'WIN'
-                            ? '#bbf7d0'
-                            : trade.result === 'LOSS'
-                            ? '#fecaca'
-                            : '#bfdbfe'
-                        }`,
-                      }}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        trade.result === 'WIN'
+                          ? isDayMode
+                            ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                            : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                          : trade.result === 'LOSS'
+                          ? isDayMode
+                            ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                            : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                          : isDayMode
+                          ? 'bg-[#F2F1EF] text-[#6B7280] border border-[#E5E4E2]'
+                          : 'bg-[#181A20] text-[#8E95A5] border border-[#1E2026]'
+                      }`}
                     >
                       {trade.result === 'WIN' ? (
-                        <CheckCircle2 size={11} />
+                        <CheckCircle2 size={10} />
                       ) : trade.result === 'LOSS' ? (
-                        <XCircle size={11} />
+                        <XCircle size={10} />
                       ) : (
-                        <Minus size={11} />
+                        <Minus size={10} />
                       )}
                       {trade.result || trade.status}
                     </span>
                   </td>
-                  <td className="py-3 text-right font-mono font-extrabold text-sm">
-                    <span style={{ color: (trade.pnl || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
+                  <td className="py-2.5 text-right font-mono font-black text-xs">
+                    <span style={{ color: (trade.pnl || 0) >= 0 ? (isDayMode ? '#059669' : '#10B981') : (isDayMode ? '#DC2626' : '#F87171') }}>
                       {(trade.pnl || 0) >= 0 ? '+' : ''}${trade.pnl?.toFixed(2) || '0.00'}
                     </span>
                   </td>
@@ -290,4 +292,5 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
       )}
     </div>
   );
+};
 };

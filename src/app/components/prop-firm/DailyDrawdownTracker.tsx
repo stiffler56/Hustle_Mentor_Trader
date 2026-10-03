@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldCheck, AlertTriangle, AlertOctagon, Clock } from 'lucide-react';
 import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
+import { useTheme } from '../../data/ThemeContext';
 
 interface DailyDrawdownTrackerProps {
   account: Account;
@@ -9,6 +10,7 @@ interface DailyDrawdownTrackerProps {
 }
 
 export const DailyDrawdownTracker: React.FC<DailyDrawdownTrackerProps> = ({ account, trades }) => {
+  const { isDayMode } = useTheme();
   const todayStr = new Date().toISOString().split('T')[0];
   const todayTrades = trades.filter(t => t.date === todayStr && t.status === 'CLOSED');
 
@@ -27,125 +29,150 @@ export const DailyDrawdownTracker: React.FC<DailyDrawdownTrackerProps> = ({ acco
   const isBreached = currentLoss >= dailyLimitDollar;
   const isWarning = usedPctOfLimit >= 70 && !isBreached;
 
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const subCardBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const textMuted = isDayMode ? 'text-[#9CA3AF]' : 'text-[#525866]';
+
   return (
     <div
-      className="rounded-2xl p-6 bg-white border border-slate-200 shadow-sm"
-      style={{
-        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
-      }}
+      className={`rounded-xl p-5 border shadow-xs transition-all ${cardBg}`}
     >
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{
-              background: isBreached ? '#fef2f2' : isWarning ? '#fffbeb' : '#eff6ff',
+              background: isBreached
+                ? isDayMode ? '#FEE2E2' : '#2D1416'
+                : isWarning
+                ? isDayMode ? '#FEF3C7' : '#2A1D0E'
+                : isDayMode ? '#DCFCE7' : '#0E291E',
             }}
           >
             {isBreached ? (
-              <AlertOctagon size={18} className="text-red-600" />
+              <AlertOctagon size={16} className={isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'} />
             ) : isWarning ? (
-              <AlertTriangle size={18} className="text-amber-600" />
+              <AlertTriangle size={16} className="text-amber-500" />
             ) : (
-              <ShieldCheck size={18} className="text-blue-600" />
+              <ShieldCheck size={16} className={isDayMode ? 'text-[#059669]' : 'text-[#10B981]'} />
             )}
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Daily Risk & Drawdown Monitor</h3>
-            <p className="text-xs text-slate-500 font-medium">
+            <h3 className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>Daily Risk & Drawdown Monitor</h3>
+            <p className={`text-[11px] font-medium ${textSecondary}`}>
               Resets every trading day at 00:00 UTC / 17:00 EST
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-          <Clock size={13} className="text-blue-600" />
-          <span className="font-mono">{todayStr}</span>
+        <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border ${subCardBg} ${textSecondary}`}>
+          <Clock size={12} className="text-[#5D5FEF]" />
+          <span className="font-mono text-[11px]">{todayStr}</span>
         </div>
       </div>
 
       {/* Main Barometer Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         {/* Today's Net PnL */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1">Today's Net P&L</span>
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${textSecondary}`}>Today's Net P&L</span>
           <div className="flex items-baseline gap-1.5">
             <span
-              className="text-2xl font-extrabold font-mono"
-              style={{ color: todayPnl > 0 ? '#16a34a' : todayPnl < 0 ? '#dc2626' : '#2563eb' }}
+              className={`text-xl font-black font-mono ${textPrimary}`}
             >
               {todayPnl >= 0 ? '+' : ''}${todayPnl.toFixed(2)}
             </span>
             <span
-              className="text-xs font-bold"
-              style={{ color: todayPnl > 0 ? '#16a34a' : todayPnl < 0 ? '#dc2626' : '#64748b' }}
+              className={`text-xs font-bold ${
+                todayPnl >= 0
+                  ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                  : isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'
+              }`}
             >
               ({(todayPnl / account.initialBalance * 100).toFixed(2)}%)
             </span>
           </div>
-          <span className="text-[11px] font-medium text-slate-500 mt-1 block">
+          <span className={`text-[10px] font-medium mt-0.5 block ${textMuted}`}>
             {todayTrades.length} trades ({todayWins}W / {todayLosses}L)
           </span>
         </div>
 
         {/* Daily Drawdown Used */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1">Daily Loss Used</span>
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${textSecondary}`}>Daily Loss Used</span>
           <div className="flex items-baseline gap-1.5">
             <span
-              className="text-2xl font-extrabold font-mono"
-              style={{ color: currentLoss > 0 ? '#dc2626' : '#2563eb' }}
+              className={`text-xl font-black font-mono ${textPrimary}`}
             >
               -${currentLoss.toFixed(2)}
             </span>
-            <span className="text-xs font-medium text-slate-500">
+            <span className={`text-[11px] ${textSecondary}`}>
               / max -${dailyLimitDollar.toLocaleString()} ({dailyLimitPct}%)
             </span>
           </div>
-          <span className="text-[11px] font-medium text-slate-500 mt-1 block">
-            {usedPctOfLimit.toFixed(1)}% of daily allowance consumed
+          <span className={`text-[10px] font-medium mt-0.5 block ${textMuted}`}>
+            {usedPctOfLimit.toFixed(1)}% consumed
           </span>
         </div>
 
         {/* Safety Buffer Remaining */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1">Safety Buffer Left Today</span>
+        <div className={`p-3.5 rounded-lg border ${subCardBg}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${textSecondary}`}>Safety Buffer Left</span>
           <div className="flex items-baseline gap-1.5">
             <span
-              className="text-2xl font-extrabold font-mono"
-              style={{ color: bufferPct <= 1.5 ? '#dc2626' : '#2563eb' }}
+              className={`text-xl font-black font-mono ${
+                bufferPct <= 1.5
+                  ? isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'
+                  : isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+              }`}
             >
               ${bufferDollar.toFixed(2)}
             </span>
             <span
-              className="text-xs font-bold"
-              style={{ color: bufferPct <= 1.5 ? '#dc2626' : '#2563eb' }}
+              className={`text-xs font-bold ${
+                bufferPct <= 1.5
+                  ? isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'
+                  : isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+              }`}
             >
-              ({bufferPct.toFixed(2)}% left)
+              ({bufferPct.toFixed(2)}%)
             </span>
           </div>
-          <span className="text-[11px] font-medium text-slate-500 mt-1 block">
-            {isBreached ? 'RULE BREACHED' : isWarning ? 'WARNING: Low risk buffer' : 'Account in safe territory'}
+          <span className={`text-[10px] font-medium mt-0.5 block ${textMuted}`}>
+            {bufferPct <= 1.5 ? 'Warning: Near daily limit' : 'Safe operating zone'}
           </span>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-xs font-semibold text-slate-700">
-          <span>Daily Risk Used: {usedPctOfLimit.toFixed(1)}%</span>
-          <span>Max Allowed: ${dailyLimitDollar.toLocaleString()} (100%)</span>
+      {/* Large Horizontal Gauge Bar */}
+      <div>
+        <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+          <span className={`text-[11px] ${textSecondary}`}>Daily Drawdown Gauge</span>
+          <span
+            className="font-bold text-[11px]"
+            style={{
+              color: isBreached
+                ? isDayMode ? '#DC2626' : '#F87171'
+                : isWarning
+                ? '#D97706'
+                : isDayMode ? '#059669' : '#10B981',
+            }}
+          >
+            {isBreached ? 'LIMIT BREACHED' : isWarning ? 'CAUTION: RISK LEVEL HIGH' : 'NORMAL RISK LEVEL'}
+          </span>
         </div>
-        <div className="w-full h-2.5 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
+        <div className={`w-full h-2 rounded-full overflow-hidden border ${isDayMode ? 'bg-[#E5E4E2] border-[#E5E4E2]' : 'bg-[#0B0C0E] border-[#1E2026]'}`}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
-              width: `${Math.max(3, usedPctOfLimit)}%`,
+              width: `${Math.max(2, Math.min(100, usedPctOfLimit))}%`,
               background: isBreached
-                ? 'linear-gradient(90deg, #ef4444, #dc2626)'
+                ? isDayMode ? '#DC2626' : '#F87171'
                 : isWarning
-                ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                : 'linear-gradient(90deg, #3b82f6, #2563eb)',
+                ? '#D97706'
+                : isDayMode ? '#059669' : '#10B981',
             }}
           />
         </div>

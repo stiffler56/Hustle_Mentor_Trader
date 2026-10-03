@@ -14,32 +14,32 @@ export interface ThemeColors {
   accent: string;
 }
 
-const WHITE_BLUE: ThemeColors = {
-  appBg:     '#FFFFFF',
+const TRADEZELLA_DARK: ThemeColors = {
+  appBg:     '#0B0C0E',
+  surface:   '#131418',
+  sidebar:   '#0B0C0E',
+  border:    '#1E2026',
+  text:      '#FFFFFF',
+  textSub:   '#8E95A5',
+  textMuted: '#525866',
+  textFaint: '#3E434D',
+  rowBorder: '#1E2026',
+  inputBg:   '#0F1013',
+  accent:    '#6366F1',
+};
+
+const TRADEZELLA_LIGHT: ThemeColors = {
+  appBg:     '#EBEAE8',
   surface:   '#FFFFFF',
   sidebar:   '#FFFFFF',
-  border:    '#DBEAFE',
-  text:      '#1E3A8A',
-  textSub:   '#2563EB',
-  textMuted: '#3B82F6',
-  textFaint: '#60A5FA',
-  rowBorder: '#EFF6FF',
-  inputBg:   '#F8FAFC',
-  accent:    '#2563EB',
-};
-
-const NIGHT: ThemeColors = {
-  ...WHITE_BLUE,
-  surface:   '#F8FAFC',
-  inputBg:   '#F1F5F9',
-  border:    '#BFDBFE',
-};
-
-const DAY: ThemeColors = {
-  ...WHITE_BLUE,
-  surface:   '#FFFFFF',
-  inputBg:   '#F8FAFC',
-  border:    '#DBEAFE',
+  border:    '#E5E4E2',
+  text:      '#111827',
+  textSub:   '#6B7280',
+  textMuted: '#9CA3AF',
+  textFaint: '#D1D5DB',
+  rowBorder: '#E5E4E2',
+  inputBg:   '#F9FAFB',
+  accent:    '#5D5FEF',
 };
 
 interface ThemeContextType {
@@ -57,6 +57,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('hustle_theme', isDayMode ? 'day' : 'night');
+    document.documentElement.classList.toggle('dark', !isDayMode);
     document.documentElement.classList.toggle('day-mode', isDayMode);
   }, [isDayMode]);
 
@@ -64,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     <ThemeContext.Provider value={{
       isDayMode,
       toggleTheme: () => setIsDayMode((p: boolean) => !p),
-      colors: isDayMode ? DAY : NIGHT,
+      colors: isDayMode ? TRADEZELLA_LIGHT : TRADEZELLA_DARK,
     }}>
       {children}
     </ThemeContext.Provider>

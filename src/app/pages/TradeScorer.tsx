@@ -14,6 +14,7 @@ import {
 import { calculateScore, getMentorTip } from '../utils/scoring';
 import { useTradesContext } from '../data/TradesContext';
 import { useChallengeContext } from '../data/ChallengeContext';
+import { useTheme } from '../data/ThemeContext';
 import { ImageUpload } from '../components/ImageUpload';
 import type { Session, OrderType, Trend, Strategy, Trade } from '../data/types';
 
@@ -27,32 +28,38 @@ function Select({
   value,
   options,
   onChange,
+  isDayMode,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  isDayMode?: boolean;
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1.5">
+      <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]'}`}>
         {label}
       </label>
       <div className="relative">
         <select
           value={value}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg px-3 py-2.5 text-sm pr-8 bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors cursor-pointer"
+          className={`w-full appearance-none rounded-lg px-3 py-2.5 text-sm pr-8 border transition-colors cursor-pointer outline-none focus:border-[#5D5FEF] ${
+            isDayMode
+              ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827]'
+              : 'bg-[#0F1013] border-[#1E2026] text-white'
+          }`}
         >
           {options.map((o) => (
-            <option key={o} value={o} className="bg-white dark:bg-[#121826] text-slate-900 dark:text-white">
+            <option key={o} value={o} className={isDayMode ? 'bg-white text-[#111827]' : 'bg-[#131418] text-white'}>
               {o}
             </option>
           ))}
         </select>
         <ChevronDown
           size={14}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#9CA3AF]"
         />
       </div>
     </div>
@@ -69,6 +76,7 @@ function SliderInput({
   targetMin,
   targetMax,
   maxScore,
+  isDayMode,
 }: {
   label: string;
   value: number;
@@ -79,28 +87,35 @@ function SliderInput({
   targetMin?: number;
   targetMax?: number;
   maxScore: number;
+  isDayMode?: boolean;
 }) {
   const isGood = targetMin !== undefined && targetMax !== undefined && value >= targetMin && value <= targetMax;
   const ratio = value / max;
   const pts = Math.round(ratio * maxScore);
-  const color = ratio >= 0.8 ? '#10B981' : ratio >= 0.5 ? '#2563EB' : '#EF4444';
+  const color = ratio >= 0.8 ? (isDayMode ? '#059669' : '#10B981') : ratio >= 0.5 ? '#5D5FEF' : (isDayMode ? '#DC2626' : '#F87171');
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+        <label className={`text-xs font-semibold uppercase tracking-wide ${isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]'}`}>
           {label}
         </label>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-950 dark:text-white">{value}</span>
-          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {max}</span>
+          <span className={`text-sm font-bold ${isDayMode ? 'text-[#111827]' : 'text-white'}`}>{value}</span>
+          <span className={`text-xs font-normal ${isDayMode ? 'text-[#9CA3AF]' : 'text-[#525866]'}`}>/ {max}</span>
           <span
             className={`text-xs font-mono px-2 py-0.5 rounded font-semibold border ${
               ratio >= 0.8
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+                ? isDayMode
+                  ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                  : 'bg-[#0E291E] text-[#10B981] border-[#144634]'
                 : ratio >= 0.5
-                ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/50'
-                : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50'
+                ? isDayMode
+                  ? 'bg-[#EEF0FF] text-[#5D5FEF] border-[#5D5FEF]/30'
+                  : 'bg-[#181A20] text-[#6366F1] border-[#6366F1]/30'
+                : isDayMode
+                ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]'
+                : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'
             }`}
           >
             +{pts}pts
@@ -115,7 +130,7 @@ function SliderInput({
         onValueChange={([v]) => onChange(v)}
         className="relative flex items-center h-5 w-full cursor-pointer"
       >
-        <Slider.Track className="relative h-2 w-full rounded-full bg-slate-100 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800">
+        <Slider.Track className={`relative h-2 w-full rounded-full border ${isDayMode ? 'bg-[#E5E4E2] border-[#E5E4E2]' : 'bg-[#0B0C0E] border-[#1E2026]'}`}>
           <Slider.Range className="absolute h-full rounded-full transition-all" style={{ background: color }} />
         </Slider.Track>
         <Slider.Thumb
@@ -124,30 +139,36 @@ function SliderInput({
         />
       </Slider.Root>
       {targetMin !== undefined && (
-        <div className="flex items-center justify-between text-xs mt-1 text-slate-500 dark:text-slate-400">
+        <div className={`flex items-center justify-between text-xs mt-1 ${isDayMode ? 'text-[#9CA3AF]' : 'text-[#525866]'}`}>
           <span>Target: {targetMin}–{targetMax}</span>
-          {isGood && <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Optimal Zone</span>}
+          {isGood && <span className={`font-semibold ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>✓ Optimal Zone</span>}
         </div>
       )}
     </div>
   );
 }
 
-function LiveScoreCard({ score, decision }: { score: number; decision: string }) {
+function LiveScoreCard({ score, decision, isDayMode }: { score: number; decision: string; isDayMode?: boolean }) {
   const r = 68;
   const circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
 
-  const color = decision === 'TAKE' ? '#10B981' : decision === 'WAIT' ? '#F59E0B' : '#EF4444';
+  const color = decision === 'TAKE' ? (isDayMode ? '#059669' : '#10B981') : decision === 'WAIT' ? '#F59E0B' : (isDayMode ? '#DC2626' : '#F87171');
   const Icon = decision === 'TAKE' ? CheckCircle2 : decision === 'WAIT' ? Clock : XCircle;
 
   return (
-    <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 shadow-sm flex flex-col items-center">
+    <div className={`rounded-xl p-5 shadow-xs flex flex-col items-center border ${
+      isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white'
+    }`}>
       <div className="w-full flex items-center justify-between mb-4">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+        <span className={`text-xs font-bold uppercase tracking-wider ${isDayMode ? 'text-[#111827]' : 'text-white'}`}>
           Live Score
         </span>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+        <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+          isDayMode
+            ? 'bg-[#EEF0FF] text-[#5D5FEF] border-[#5D5FEF]/30'
+            : 'bg-[#181A20] text-[#6366F1] border-[#1E2026]'
+        }`}>
           REAL-TIME
         </span>
       </div>
@@ -217,23 +238,25 @@ function BreakdownBar({
   label,
   score,
   maxScore,
+  isDayMode,
 }: {
   label: string;
   score: number;
   maxScore: number;
+  isDayMode?: boolean;
 }) {
   const ratio = score / maxScore;
-  const barColor = ratio >= 0.8 ? '#10B981' : ratio >= 0.5 ? '#2563EB' : '#EF4444';
+  const barColor = ratio >= 0.8 ? (isDayMode ? '#059669' : '#10B981') : ratio >= 0.5 ? '#5D5FEF' : (isDayMode ? '#DC2626' : '#F87171');
 
   return (
     <div>
       <div className="flex justify-between text-xs mb-1.5 font-medium">
-        <span className="text-slate-800 dark:text-slate-200">{label}</span>
-        <span className="font-mono font-bold text-slate-950 dark:text-white" style={{ color: barColor }}>
+        <span className={isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]'}>{label}</span>
+        <span className={`font-mono font-bold ${isDayMode ? 'text-[#111827]' : 'text-white'}`} style={{ color: barColor }}>
           {score} / {maxScore}
         </span>
       </div>
-      <div className="h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800">
+      <div className={`h-2 rounded-full overflow-hidden border ${isDayMode ? 'bg-[#E5E4E2] border-[#E5E4E2]' : 'bg-[#0B0C0E] border-[#1E2026]'}`}>
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(100, Math.max(0, ratio * 100))}%`, background: barColor }}
@@ -246,6 +269,7 @@ function BreakdownBar({
 export default function TradeScorer() {
   const { addTrade } = useTradesContext();
   const { challenge, addChallengeTradeId, dayNumber } = useChallengeContext();
+  const { isDayMode } = useTheme();
 
   const [pair, setPair] = useState('XAUUSD');
   const [session, setSession] = useState<Session>('New York');
@@ -313,20 +337,26 @@ export default function TradeScorer() {
     setScreenshotBefore2(undefined);
   };
 
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const textMuted = isDayMode ? 'text-[#9CA3AF]' : 'text-[#525866]';
+  const subCardBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]';
+
   return (
-    <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6">
+    <div className={`p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 min-h-full font-sans ${isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'}`}>
       {/* Top Header & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-            <span className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">Tools</span>
-            <span className="text-slate-400 dark:text-slate-600">/</span>
-            <span className="text-slate-700 dark:text-slate-300 font-semibold">Trade Scorer</span>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
+            <span className={textSecondary}>Tools</span>
+            <span className={textMuted}>/</span>
+            <span className={`font-semibold ${textPrimary}`}>Trade Scorer</span>
           </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+          <h1 className={`text-2xl lg:text-3xl font-black tracking-tight ${textPrimary}`}>
             Pre-Trade Quality Scorer
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+          <p className={`text-sm mt-1 ${textSecondary}`}>
             Score your setup objectively before entry to protect account capital and drawdown rules.
           </p>
         </div>
@@ -335,8 +365,8 @@ export default function TradeScorer() {
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs bg-amber-500/10 border border-amber-500/30">
             <Flame size={14} className="text-amber-500" />
             <div>
-              <span className="font-semibold text-amber-700 dark:text-amber-400">30-Day Challenge: Day {dayNumber}</span>
-              <span className="ml-1.5 hidden md:inline text-slate-500 dark:text-slate-400">• Min Score 75 required</span>
+              <span className="font-semibold text-amber-500">30-Day Challenge: Day {dayNumber}</span>
+              <span className={`ml-1.5 hidden md:inline ${textSecondary}`}>• Min Score 75 required</span>
             </div>
           </div>
         )}
@@ -346,46 +376,52 @@ export default function TradeScorer() {
         {/* LEFT COLUMN — Trade Parameters & Inputs */}
         <div className="lg:col-span-3 space-y-5">
           {/* Trade Setup Section */}
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 shadow-sm">
+          <div className={`rounded-xl p-5 shadow-xs border ${cardBg}`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              <p className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>
                 Trade Setup
               </p>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Market Execution Details</span>
+              <span className={`text-xs font-medium ${textSecondary}`}>Market Execution Details</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select label="Pair / Asset" value={pair} options={PAIRS} onChange={setPair} />
+              <Select label="Pair / Asset" value={pair} options={PAIRS} onChange={setPair} isDayMode={isDayMode} />
               <Select
                 label="Trading Session"
                 value={session}
                 options={SESSIONS}
                 onChange={(v) => setSession(v as Session)}
+                isDayMode={isDayMode}
               />
               <Select
                 label="Market Trend"
                 value={trend}
                 options={TRENDS}
                 onChange={(v) => setTrend(v as Trend)}
+                isDayMode={isDayMode}
               />
 
               {/* Order Type Toggle */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1.5">
+                <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${textSecondary}`}>
                   Order Type
                 </label>
-                <div className="flex rounded-lg overflow-hidden p-0.5 bg-slate-100 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800">
+                <div className={`flex rounded-lg overflow-hidden p-0.5 border ${subCardBg}`}>
                   {(['Buy', 'Sell'] as OrderType[]).map((o) => (
                     <button
                       key={o}
                       type="button"
                       onClick={() => setOrderType(o)}
-                      className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
+                      className={`flex-1 py-2 text-xs font-bold rounded-md transition-all cursor-pointer ${
                         orderType === o
                           ? o === 'Buy'
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shadow-sm'
-                            : 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 border border-transparent'
+                            ? isDayMode
+                              ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                              : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                            : isDayMode
+                            ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                            : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                          : `${textSecondary} hover:${textPrimary} border border-transparent`
                       }`}
                     >
                       {o}
@@ -399,16 +435,17 @@ export default function TradeScorer() {
                 value={strategy}
                 options={STRATEGIES}
                 onChange={(v) => setStrategy(v as Strategy)}
+                isDayMode={isDayMode}
               />
 
               {/* Risk Percentage */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200">
+                  <label className={`block text-xs font-semibold uppercase tracking-wide ${textSecondary}`}>
                     Account Risk %
                   </label>
                   <span
-                    className={`text-xs font-mono font-medium ${risk > 2 ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    className={`text-xs font-mono font-medium ${risk > 2 ? (isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]') : textSecondary}`}
                   >
                     {risk > 2 ? 'High Risk (>2%)' : 'Standard Risk'}
                   </span>
@@ -420,10 +457,14 @@ export default function TradeScorer() {
                   step={0.5}
                   value={risk}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRisk(Number(e.target.value))}
-                  className="w-full rounded-lg px-3 py-2 text-sm bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className={`w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-[#5D5FEF] ${
+                    isDayMode
+                      ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827]'
+                      : 'bg-[#0F1013] border-[#1E2026] text-white'
+                  }`}
                   style={{
-                    borderColor: risk > 2 ? '#EF4444' : undefined,
-                    color: risk > 2 ? '#EF4444' : undefined,
+                    borderColor: risk > 2 ? (isDayMode ? '#DC2626' : '#F87171') : undefined,
+                    color: risk > 2 ? (isDayMode ? '#DC2626' : '#F87171') : undefined,
                   }}
                 />
               </div>
@@ -431,7 +472,7 @@ export default function TradeScorer() {
 
             {/* BAIS / Key Confluences */}
             <div className="mt-4">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${textSecondary}`}>
                 Key Narrative / Confluences
               </label>
               <input
@@ -439,18 +480,22 @@ export default function TradeScorer() {
                 placeholder="e.g. D1 FVG tap + H4 liquidity sweep + M15 MSS confirmation..."
                 value={bais}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBais(e.target.value)}
-                className="w-full rounded-lg px-3 py-2.5 text-sm bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className={`w-full rounded-lg px-3 py-2.5 text-sm border transition-colors outline-none focus:border-[#5D5FEF] ${
+                  isDayMode
+                    ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827] placeholder:text-[#9CA3AF]'
+                    : 'bg-[#0F1013] border-[#1E2026] text-white placeholder:text-[#525866]'
+                }`}
               />
             </div>
           </div>
 
           {/* Quality Metrics */}
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 space-y-5 shadow-sm">
+          <div className={`rounded-xl p-5 space-y-5 shadow-xs border ${cardBg}`}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              <p className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>
                 Quality Metrics
               </p>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Execution Discipline</span>
+              <span className={`text-xs font-medium ${textSecondary}`}>Execution Discipline</span>
             </div>
 
             <SliderInput
@@ -462,6 +507,7 @@ export default function TradeScorer() {
               targetMin={20}
               targetMax={30}
               maxScore={30}
+              isDayMode={isDayMode}
             />
 
             <SliderInput
@@ -473,6 +519,7 @@ export default function TradeScorer() {
               targetMin={3}
               targetMax={4}
               maxScore={25}
+              isDayMode={isDayMode}
             />
 
             <SliderInput
@@ -484,6 +531,7 @@ export default function TradeScorer() {
               targetMin={20}
               targetMax={30}
               maxScore={25}
+              isDayMode={isDayMode}
             />
 
             <SliderInput
@@ -495,15 +543,16 @@ export default function TradeScorer() {
               targetMin={20}
               targetMax={30}
               maxScore={20}
+              isDayMode={isDayMode}
             />
 
             {/* R:R Ratio Slider */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-900 dark:text-slate-100">
+                <label className={`text-xs font-semibold uppercase tracking-wide ${textSecondary}`}>
                   Risk / Reward Ratio
                 </label>
-                <span className="text-sm font-bold font-mono text-slate-950 dark:text-white">
+                <span className={`text-sm font-bold font-mono ${textPrimary}`}>
                   {rrRatio.toFixed(1)} : 1
                 </span>
               </div>
@@ -514,12 +563,14 @@ export default function TradeScorer() {
                 step={0.5}
                 value={rrRatio}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRrRatio(Number(e.target.value))}
-                className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-100 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800"
-                style={{ accentColor: '#2563EB' }}
+                className={`w-full h-2 rounded-full appearance-none cursor-pointer border ${
+                  isDayMode ? 'bg-[#E5E4E2] border-[#E5E4E2]' : 'bg-[#0B0C0E] border-[#1E2026]'
+                }`}
+                style={{ accentColor: '#5D5FEF' }}
               />
-              <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <div className={`flex justify-between text-[11px] mt-1 ${textMuted}`}>
                 <span>1:1</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">2:1 (Target)</span>
+                <span className={`font-medium ${textSecondary}`}>2:1 (Target)</span>
                 <span>3:1</span>
                 <span>4:1</span>
                 <span>5:1</span>
@@ -528,8 +579,8 @@ export default function TradeScorer() {
           </div>
 
           {/* Chart Screenshots */}
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200 mb-4">
+          <div className={`rounded-xl p-5 shadow-xs border ${cardBg}`}>
+            <p className={`text-xs font-bold uppercase tracking-wider mb-4 ${textPrimary}`}>
               Chart Screenshots — Before Entry
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -549,8 +600,8 @@ export default function TradeScorer() {
           </div>
 
           {/* Notes */}
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200 mb-3">
+          <div className={`rounded-xl p-5 shadow-xs border ${cardBg}`}>
+            <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${textPrimary}`}>
               Trade Notes & Execution Rationale
             </p>
             <textarea
@@ -558,7 +609,11 @@ export default function TradeScorer() {
               placeholder="What structural signals did you observe? What is your invalidation point?"
               value={notes}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-lg text-sm p-3.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+              className={`w-full rounded-lg text-sm p-3.5 outline-none transition-all resize-none border focus:border-[#5D5FEF] ${
+                isDayMode
+                  ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827] placeholder:text-[#9CA3AF]'
+                  : 'bg-[#0F1013] border-[#1E2026] text-white placeholder:text-[#525866]'
+              }`}
             />
           </div>
         </div>
@@ -566,49 +621,61 @@ export default function TradeScorer() {
         {/* RIGHT COLUMN — Live Performance Score & Action Hub */}
         <div className="lg:col-span-2 space-y-5">
           {/* Consolidated Live Score Card */}
-          <LiveScoreCard score={breakdown.total} decision={breakdown.decision} />
+          <LiveScoreCard score={breakdown.total} decision={breakdown.decision} isDayMode={isDayMode} />
 
           {/* Score Breakdown Section */}
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-xl p-5 space-y-4 shadow-sm">
+          <div className={`rounded-xl p-5 space-y-4 shadow-xs border ${cardBg}`}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              <p className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>
                 Score Breakdown
               </p>
-              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">Max 100 pts</span>
+              <span className={`text-xs font-mono ${textSecondary}`}>Max 100 pts</span>
             </div>
 
             <div className="space-y-3">
-              <BreakdownBar label="Mental Focus" score={breakdown.mentalScore} maxScore={30} />
-              <BreakdownBar label="Confluences" score={breakdown.confluenceScore} maxScore={25} />
-              <BreakdownBar label="Discount / Premium (BLSH)" score={breakdown.blshScore} maxScore={25} />
-              <BreakdownBar label="Bias Alignment" score={breakdown.biasScore} maxScore={20} />
+              <BreakdownBar label="Mental Focus" score={breakdown.mentalScore} maxScore={30} isDayMode={isDayMode} />
+              <BreakdownBar label="Confluences" score={breakdown.confluenceScore} maxScore={25} isDayMode={isDayMode} />
+              <BreakdownBar label="Discount / Premium (BLSH)" score={breakdown.blshScore} maxScore={25} isDayMode={isDayMode} />
+              <BreakdownBar label="Bias Alignment" score={breakdown.biasScore} maxScore={20} isDayMode={isDayMode} />
             </div>
 
             {/* Bonus Pill Rows */}
-            <div className="pt-3 space-y-2 border-t border-slate-200 dark:border-[#1E293B]">
+            <div className={`pt-3 space-y-2 border-t ${isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]'}`}>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-700 dark:text-slate-300">Session Weight ({session})</span>
+                <span className={textSecondary}>Session Weight ({session})</span>
                 <span
                   className={`font-mono px-2 py-0.5 rounded text-xs font-semibold border ${
                     breakdown.sessionBonus > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+                      ? isDayMode
+                        ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                        : 'bg-[#0E291E] text-[#10B981] border-[#144634]'
                       : breakdown.sessionBonus < 0
-                      ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50'
-                      : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                      ? isDayMode
+                        ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]'
+                        : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'
+                      : isDayMode
+                      ? 'bg-[#F2F1EF] text-[#6B7280] border-[#E5E4E2]'
+                      : 'bg-[#181A20] text-[#8E95A5] border-[#1E2026]'
                   }`}
                 >
                   {breakdown.sessionBonus > 0 ? `+${breakdown.sessionBonus}` : breakdown.sessionBonus} pts
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-700 dark:text-slate-300">Risk Management Modifier</span>
+                <span className={textSecondary}>Risk Modifier</span>
                 <span
                   className={`font-mono px-2 py-0.5 rounded text-xs font-semibold border ${
                     breakdown.riskBonus > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50'
+                      ? isDayMode
+                        ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                        : 'bg-[#0E291E] text-[#10B981] border-[#144634]'
                       : breakdown.riskBonus < 0
-                      ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50'
-                      : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                      ? isDayMode
+                        ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]'
+                        : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'
+                      : isDayMode
+                      ? 'bg-[#F2F1EF] text-[#6B7280] border-[#E5E4E2]'
+                      : 'bg-[#181A20] text-[#8E95A5] border-[#1E2026]'
                   }`}
                 >
                   {breakdown.riskBonus > 0 ? `+${breakdown.riskBonus}` : breakdown.riskBonus} pts
@@ -618,14 +685,14 @@ export default function TradeScorer() {
           </div>
 
           {/* AI Mentor Card */}
-          <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/50 border-l-4 border-l-blue-600 rounded-xl p-4 shadow-sm">
+          <div className={`rounded-xl p-4 shadow-xs border border-l-4 border-l-[#5D5FEF] ${cardBg}`}>
             <div className="flex items-center gap-2 mb-2">
-              <Bot size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-              <p className="text-xs font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400">
+              <Bot size={16} className="text-[#5D5FEF] shrink-0" />
+              <p className="text-xs font-bold tracking-wider uppercase text-[#5D5FEF]">
                 AI Mentor Feedback
               </p>
             </div>
-            <p className="text-sm leading-relaxed font-normal text-slate-800 dark:text-slate-200">
+            <p className={`text-sm leading-relaxed font-normal ${textSecondary}`}>
               {mentorTip}
             </p>
           </div>
@@ -635,19 +702,21 @@ export default function TradeScorer() {
             type="button"
             onClick={handleLog}
             disabled={challengeBlocked}
-            className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 active:scale-98 shadow-lg ${
+            className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 active:scale-98 shadow-sm cursor-pointer ${
               logged
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
                 : challengeBlocked
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none'
+                ? isDayMode
+                  ? 'bg-[#F2F1EF] text-[#9CA3AF] border border-[#E5E4E2] cursor-not-allowed'
+                  : 'bg-[#181A20] text-[#525866] border border-[#1E2026] cursor-not-allowed shadow-none'
                 : breakdown.total < 55
-                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
-                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20'
+                ? 'bg-[#DC2626] hover:bg-[#B91C1C] text-white shadow-xs'
+                : 'bg-[#5D5FEF] hover:bg-[#4F51D8] text-white shadow-xs'
             }`}
           >
             {logged ? (
               <>
-                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <CheckCircle2 size={16} className="text-[#059669]" />
                 <span>Trade Logged to Journal!</span>
               </>
             ) : challengeBlocked ? (

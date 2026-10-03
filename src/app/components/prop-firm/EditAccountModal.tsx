@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, RotateCcw, ArrowRightCircle, Edit3, Award, RefreshCw } from 'lucide-react';
 import type { Account, AccountStatus, PropPhase } from '../../data/accountTypes';
+import { useTheme } from '../../data/ThemeContext';
 
 interface EditAccountModalProps {
   account?: Account | null;
@@ -102,25 +103,33 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
     onClose();
   };
 
+  const { isDayMode } = useTheme();
+  const modalBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const inputBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827]' : 'bg-[#0F1013] border-[#1E2026] text-white';
+  const subCardBg = isDayMode ? 'bg-[#F2F1EF] border-[#E5E4E2]' : 'bg-[#181A20] border-[#1E2026]';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const divider = isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        className={`w-full max-w-lg rounded-2xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh] ${modalBg}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
+        <div className={`flex items-center justify-between p-6 border-b shrink-0 ${divider}`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-200">
-              <Edit3 size={18} className="text-blue-600" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border text-[#5D5FEF] ${subCardBg}`}>
+              <Edit3 size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Manage Account</h3>
-              <p className="text-xs text-slate-500 font-medium">{account.name} ({account.accountNumber})</p>
+              <h3 className={`text-base font-bold ${textPrimary}`}>Manage Account</h3>
+              <p className={`text-xs font-medium ${textSecondary}`}>{account.name} ({account.accountNumber})</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
+            className={`p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer ${textSecondary}`}
           >
             <X size={18} />
           </button>

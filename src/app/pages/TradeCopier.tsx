@@ -22,6 +22,7 @@ import {
   Send,
 } from 'lucide-react';
 import { usePropAccountsContext } from '../data/PropAccountsContext';
+import { useTheme } from '../data/ThemeContext';
 
 interface OpenPosition {
   id: string;
@@ -309,23 +310,30 @@ export default function TradeCopier() {
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
+  const { isDayMode } = useTheme();
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2] text-[#111827]' : 'bg-[#131418] border-[#1E2026] text-white';
+  const subCardBg = isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]';
+  const textPrimary = isDayMode ? 'text-[#111827]' : 'text-white';
+  const textSecondary = isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]';
+  const divider = isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]';
+
   return (
-    <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6">
-      {/* Page Title & Status Banner */}
+    <div className={`p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 min-h-full font-sans ${isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'}`}>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[#6B7280] dark:text-[#8E95A5] mb-1">
             <span>Trading Utilities</span>
-            <span className="text-slate-400">/</span>
-            <span className="text-slate-700 dark:text-slate-300 font-semibold">Trade Copier</span>
+            <span className="text-[#9CA3AF]">/</span>
+            <span className={`font-semibold ${textPrimary}`}>Trade Copier</span>
           </div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-950 dark:text-white flex items-center gap-3">
+          <h1 className={`text-2xl lg:text-3xl font-black tracking-tight flex items-center gap-3 ${textPrimary}`}>
             <span>High-Speed Trade Copier</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold bg-[#5D5FEF]/10 text-[#5D5FEF] border border-[#5D5FEF]/20">
               ULTRA-LOW LATENCY
             </span>
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+          <p className={`text-sm mt-1 ${textSecondary}`}>
             Mirror live trades seamlessly from your master strategy account to prop firm evaluation accounts.
           </p>
         </div>
@@ -335,7 +343,7 @@ export default function TradeCopier() {
           <button
             type="button"
             onClick={handleTriggerTestTrade}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#5D5FEF] hover:bg-[#4F51D8] text-white shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <Send size={14} />
             <span>Send Test Sync Order</span>
@@ -344,15 +352,17 @@ export default function TradeCopier() {
       </div>
 
       {statusMessage && (
-        <div className="px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-xs font-medium flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+        <div className={`px-4 py-3 rounded-xl border text-xs font-medium flex items-center justify-between shadow-xs animate-in fade-in duration-200 ${
+          isDayMode ? 'bg-[#EEF0FF] border-[#5D5FEF]/30 text-[#5D5FEF]' : 'bg-[#181A20] border-[#6366F1]/30 text-white'
+        }`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-blue-500 shrink-0" />
+            <CheckCircle2 size={16} className="text-[#5D5FEF] shrink-0" />
             <span>{statusMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setStatusMessage(null)}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            className={`${textSecondary} hover:${textPrimary}`}
           >
             Dismiss
           </button>
@@ -360,15 +370,19 @@ export default function TradeCopier() {
       )}
 
       {/* 1. Copier Engine Status Card */}
-      <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-2xl p-5 shadow-sm">
+      <div className={`rounded-xl border p-5 shadow-xs ${cardBg}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Engine Status & Switch */}
           <div className="flex items-center gap-4">
             <div
               className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
                 engineOnline
-                  ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 shadow-md shadow-emerald-500/10'
-                  : 'bg-red-500/15 border border-red-500/30 text-red-500'
+                  ? isDayMode
+                    ? 'bg-[#DCFCE7] border border-[#86EFAC] text-[#059669]'
+                    : 'bg-[#0E291E] border border-[#144634] text-[#10B981]'
+                  : isDayMode
+                  ? 'bg-[#FEE2E2] border border-[#FCA5A5] text-[#DC2626]'
+                  : 'bg-[#2D1416] border border-[#4C1D24] text-[#F87171]'
               }`}
             >
               <Radio size={24} className={engineOnline ? 'animate-pulse' : ''} />
@@ -378,14 +392,16 @@ export default function TradeCopier() {
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2.5 h-2.5 rounded-full ${
-                    engineOnline ? 'bg-emerald-500 animate-ping' : 'bg-red-500'
+                    engineOnline
+                      ? isDayMode ? 'bg-[#059669] animate-ping' : 'bg-[#10B981] animate-ping'
+                      : isDayMode ? 'bg-[#DC2626]' : 'bg-[#F87171]'
                   }`}
                 />
-                <h2 className="text-lg font-bold text-slate-950 dark:text-white">
+                <h2 className={`text-lg font-bold ${textPrimary}`}>
                   {engineOnline ? 'Copier Engine Online' : 'Copier Engine Paused'}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className={`text-xs mt-0.5 ${textSecondary}`}>
                 {engineOnline
                   ? 'Instant sub-millisecond socket bridge active. Orders automatically mirrored.'
                   : 'Order transmission paused. Target accounts will not receive master fills.'}
@@ -396,23 +412,23 @@ export default function TradeCopier() {
           {/* Right Metrics & Global Master Toggle */}
           <div className="flex items-center gap-6 flex-wrap md:flex-nowrap">
             {/* Metric 1: Latency */}
-            <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+            <div className={`px-4 py-2 rounded-xl border ${subCardBg}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>
                 Avg Latency
               </span>
-              <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+              <span className={`text-sm font-bold font-mono flex items-center gap-1 mt-0.5 ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
                 <Zap size={13} />
                 {engineOnline ? '12ms' : '—'}
               </span>
             </div>
 
             {/* Metric 2: Protocol Bridge */}
-            <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+            <div className={`px-4 py-2 rounded-xl border ${subCardBg}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block ${textSecondary}`}>
                 Active Protocol
               </span>
-              <span className="text-sm font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5 mt-0.5">
-                <ArrowRightLeft size={13} className="text-blue-500" />
+              <span className={`text-sm font-bold flex items-center gap-1.5 mt-0.5 ${textPrimary}`}>
+                <ArrowRightLeft size={13} className="text-[#5D5FEF]" />
                 MT5 &lt;—&gt; cTrader Bridge
               </span>
             </div>
@@ -421,10 +437,14 @@ export default function TradeCopier() {
             <button
               type="button"
               onClick={() => setEngineOnline((prev) => !prev)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer ${
                 engineOnline
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-                  : 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
+                  ? isDayMode
+                    ? 'bg-[#059669] hover:bg-[#047857] text-white'
+                    : 'bg-[#10B981] hover:bg-[#059669] text-white'
+                  : isDayMode
+                  ? 'bg-[#DC2626] hover:bg-[#B91C1C] text-white'
+                  : 'bg-[#F87171] hover:bg-[#EF4444] text-white'
               }`}
             >
               <Power size={14} />
@@ -437,58 +457,66 @@ export default function TradeCopier() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 2. Master Account Setup (Leader) */}
         <div className="lg:col-span-1 space-y-5">
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-2xl p-5 shadow-sm">
+          <div className={`rounded-xl border p-5 shadow-xs ${cardBg}`}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+                  isDayMode ? 'bg-[#EEF0FF] text-[#5D5FEF] border-[#5D5FEF]/20' : 'bg-[#181A20] text-[#6366F1] border-[#1E2026]'
+                }`}>
                   <ShieldCheck size={16} />
                 </div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${textPrimary}`}>
                   Master Leader Account
                 </h3>
               </div>
-              <span className="text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <span className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded border ${
+                isDayMode ? 'bg-[#EEF0FF] text-[#5D5FEF] border-[#5D5FEF]/30' : 'bg-[#181A20] text-[#6366F1] border-[#1E2026]'
+              }`}>
                 SOURCE
               </span>
             </div>
 
             {/* Select Master Account */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-200 mb-1.5">
+              <label className={`block text-xs font-semibold uppercase tracking-wide mb-1.5 ${textSecondary}`}>
                 Select Lead Account
               </label>
               <div className="relative">
                 <select
                   value={selectedMasterId}
                   onChange={(e) => setSelectedMasterId(e.target.value)}
-                  className="w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-semibold pr-9 bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                  className={`w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-semibold pr-9 border focus:outline-none focus:border-[#5D5FEF] cursor-pointer ${
+                    isDayMode
+                      ? 'bg-[#F9FAFB] border-[#E5E4E2] text-[#111827]'
+                      : 'bg-[#0F1013] border-[#1E2026] text-white'
+                  }`}
                 >
                   {masterAccountOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id} className="bg-white dark:bg-[#121826]">
+                    <option key={opt.id} value={opt.id} className={isDayMode ? 'bg-white text-[#111827]' : 'bg-[#131418] text-white'}>
                       {opt.label} — {opt.platform}
                     </option>
                   ))}
                 </select>
                 <ChevronDown
                   size={15}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9CA3AF]"
                 />
               </div>
             </div>
 
             {/* Master Account Stats Card */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 mb-4">
+            <div className={`p-3.5 rounded-xl border mb-4 ${subCardBg}`}>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-slate-500 dark:text-slate-400">Account Provider</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedMaster.broker}</span>
+                <span className={textSecondary}>Account Provider</span>
+                <span className={`font-semibold ${textPrimary}`}>{selectedMaster.broker}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-slate-500 dark:text-slate-400">Trading Platform</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedMaster.platform}</span>
+                <span className={textSecondary}>Trading Platform</span>
+                <span className={`font-semibold ${textPrimary}`}>{selectedMaster.platform}</span>
               </div>
-              <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400">Account Balance</span>
-                <span className="font-mono font-bold text-slate-950 dark:text-white">
+              <div className={`flex justify-between items-center text-xs pt-1.5 border-t ${divider}`}>
+                <span className={textSecondary}>Account Balance</span>
+                <span className={`font-mono font-bold ${textPrimary}`}>
                   ${selectedMaster.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
@@ -497,17 +525,17 @@ export default function TradeCopier() {
             {/* Live Open Positions on Master */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+                <span className={`text-xs font-bold uppercase tracking-wider ${textPrimary}`}>
                   Open Positions ({openPositions.length})
                 </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className={`text-[10px] font-semibold flex items-center gap-1 ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`} />
                   Live Sync
                 </span>
               </div>
 
               {openPositions.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-500 rounded-xl bg-slate-50 dark:bg-[#0D121F] border border-dashed border-slate-200 dark:border-slate-800">
+                <div className={`p-6 text-center text-xs rounded-xl border border-dashed ${subCardBg} ${textSecondary}`}>
                   No open trades detected on master account.
                 </div>
               ) : (
@@ -515,24 +543,28 @@ export default function TradeCopier() {
                   {openPositions.map((pos) => (
                     <div
                       key={pos.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#0D121F] border border-slate-200 dark:border-slate-800 flex items-center justify-between"
+                      className={`p-3 rounded-xl border flex items-center justify-between ${subCardBg}`}
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-950 dark:text-white">
+                          <span className={`text-xs font-bold ${textPrimary}`}>
                             {pos.symbol}
                           </span>
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
+                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono uppercase ${
                               pos.type === 'BUY'
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                                ? isDayMode
+                                  ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                                  : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                                : isDayMode
+                                ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                                : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
                             }`}
                           >
                             {pos.type} {pos.lots}L
                           </span>
                         </div>
-                        <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1">
+                        <p className={`text-[11px] font-mono mt-1 ${textSecondary}`}>
                           Entry: {pos.openPrice} • Current: {pos.currentPrice}
                         </p>
                       </div>
@@ -541,13 +573,13 @@ export default function TradeCopier() {
                         <span
                           className={`text-xs font-bold font-mono ${
                             pos.pnl >= 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                              : isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'
                           }`}
                         >
                           {pos.pnl >= 0 ? `+$${pos.pnl.toFixed(2)}` : `-$${Math.abs(pos.pnl).toFixed(2)}`}
                         </span>
-                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{pos.openTime}</p>
+                        <p className={`text-[10px] font-mono mt-0.5 ${textSecondary}`}>{pos.openTime}</p>
                       </div>
                     </div>
                   ))}
@@ -559,19 +591,21 @@ export default function TradeCopier() {
 
         {/* 3. Slave / Follower Accounts Table */}
         <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-2xl p-5 shadow-sm">
+          <div className={`rounded-xl border p-5 shadow-xs ${cardBg}`}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${textPrimary}`}>
                   Slave / Follower Target Accounts ({slaves.length})
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className={`text-xs mt-0.5 ${textSecondary}`}>
                   Configure independent risk sizing, max slippage rules, and emergency liquidation per follower.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-semibold px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                <span className={`text-[10px] font-mono font-semibold px-2 py-1 rounded border ${
+                  isDayMode ? 'bg-[#F2F1EF] text-[#6B7280] border-[#E5E4E2]' : 'bg-[#181A20] text-[#8E95A5] border-[#1E2026]'
+                }`}>
                   {slaves.filter((s) => s.isActive).length} ACTIVE
                 </span>
               </div>
@@ -583,20 +617,26 @@ export default function TradeCopier() {
                   key={slave.id}
                   className={`p-4 rounded-xl border transition-all ${
                     slave.isActive
-                      ? 'bg-slate-50/70 dark:bg-[#0D121F] border-slate-200 dark:border-slate-800'
-                      : 'bg-slate-100/50 dark:bg-[#0B0F19]/50 border-slate-200 dark:border-slate-900 opacity-70'
+                      ? subCardBg
+                      : isDayMode
+                      ? 'bg-[#F2F1EF] border-[#E5E4E2] opacity-70'
+                      : 'bg-[#0B0C0E] border-[#1E2026]/40 opacity-70'
                   }`}
                 >
                   {/* Top row: Slave name, status toggle, emergency close */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${divider}`}>
                     <div className="flex items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() => toggleSlaveActive(slave.id)}
-                        className={`p-1.5 rounded-lg transition-colors ${
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                           slave.isActive
-                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25'
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300'
+                            ? isDayMode
+                              ? 'bg-[#DCFCE7] text-[#059669] hover:bg-[#bbf7d0]'
+                              : 'bg-[#0E291E] text-[#10B981] hover:bg-[#144634]'
+                            : isDayMode
+                            ? 'bg-[#E5E4E2] text-[#6B7280]'
+                            : 'bg-[#181A20] text-[#525866] hover:bg-[#252830]'
                         }`}
                         title={slave.isActive ? 'Pause follower' : 'Activate follower'}
                       >
@@ -605,14 +645,16 @@ export default function TradeCopier() {
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-950 dark:text-white">
+                          <h4 className={`text-xs font-bold ${textPrimary}`}>
                             {slave.name}
                           </h4>
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                            isDayMode ? 'bg-[#E5E4E2] text-[#111827]' : 'bg-[#181A20] text-[#8E95A5]'
+                          }`}>
                             {slave.accountNumber}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <p className={`text-[11px] ${textSecondary}`}>
                           {slave.broker} • {slave.platform}
                         </p>
                       </div>
@@ -620,10 +662,10 @@ export default function TradeCopier() {
 
                     <div className="flex items-center gap-3 self-end sm:self-auto">
                       <div className="text-right">
-                        <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                        <span className={`text-xs font-bold font-mono ${isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}`}>
                           +${slave.floatingPnl.toFixed(2)}
                         </span>
-                        <span className="text-[10px] text-slate-400 block">
+                        <span className={`text-[10px] block ${textSecondary}`}>
                           {slave.openPositionsCount} copied open
                         </span>
                       </div>
@@ -632,7 +674,11 @@ export default function TradeCopier() {
                       <button
                         type="button"
                         onClick={() => handleEmergencyClose(slave)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 transition-all active:scale-95 flex items-center gap-1.5"
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                          isDayMode
+                            ? 'bg-[#FEE2E2] hover:bg-[#fecaca] text-[#DC2626] border-[#FCA5A5]'
+                            : 'bg-[#2D1416] hover:bg-[#2D1416]/80 text-[#F87171] border-[#4C1D24]'
+                        }`}
                         title="Immediately close all open positions on this account"
                       >
                         <AlertTriangle size={12} />
@@ -645,7 +691,7 @@ export default function TradeCopier() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
                     {/* Sizing Mode */}
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${textSecondary}`}>
                         Lot Sizing Mode
                       </label>
                       <select
@@ -657,7 +703,11 @@ export default function TradeCopier() {
                             e.target.value as SlaveAccountConfig['sizingMode']
                           )
                         }
-                        className="w-full text-xs font-medium rounded-lg px-2.5 py-1.5 bg-white dark:bg-[#121826] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                        className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border focus:outline-none focus:border-[#5D5FEF] cursor-pointer ${
+                          isDayMode
+                            ? 'bg-white border-[#E5E4E2] text-[#111827]'
+                            : 'bg-[#131418] border-[#1E2026] text-white'
+                        }`}
                       >
                         <option value="RISK_MULTIPLIER">Risk Multiplier (1.0x)</option>
                         <option value="EQUITY_RATIO">Equity Proportion Ratio</option>
@@ -667,7 +717,7 @@ export default function TradeCopier() {
 
                     {/* Max Slippage */}
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${textSecondary}`}>
                         Max Slippage (Pips)
                       </label>
                       <input
@@ -679,20 +729,24 @@ export default function TradeCopier() {
                         onChange={(e) =>
                           updateSlaveField(slave.id, 'maxSlippagePips', Number(e.target.value))
                         }
-                        className="w-full text-xs font-mono font-medium rounded-lg px-2.5 py-1.5 bg-white dark:bg-[#121826] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                        className={`w-full text-xs font-mono font-medium rounded-lg px-2.5 py-1.5 border focus:outline-none focus:border-[#5D5FEF] ${
+                          isDayMode
+                            ? 'bg-white border-[#E5E4E2] text-[#111827]'
+                            : 'bg-[#131418] border-[#1E2026] text-white'
+                        }`}
                       />
                     </div>
 
                     {/* Copy SL/TP checkbox */}
                     <div className="flex items-center sm:justify-center pt-2 sm:pt-4">
-                      <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                      <label className={`flex items-center gap-2 cursor-pointer text-xs font-medium ${textSecondary}`}>
                         <input
                           type="checkbox"
                           checked={slave.copySlTp}
                           onChange={(e) =>
                             updateSlaveField(slave.id, 'copySlTp', e.target.checked)
                           }
-                          className="w-4 h-4 rounded text-blue-600 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-blue-500"
+                          className="w-4 h-4 rounded text-[#5D5FEF] border-slate-300 dark:border-slate-700 focus:ring-[#5D5FEF]"
                         />
                         <span>Copy SL / TP Levels</span>
                       </label>
@@ -706,26 +760,28 @@ export default function TradeCopier() {
       </div>
 
       {/* 4. Copier Execution Audit Log */}
-      <div className="bg-white dark:bg-[#121826] border border-slate-200 dark:border-[#1E293B] rounded-2xl p-5 shadow-sm">
+      <div className={`rounded-xl border p-5 shadow-xs ${cardBg}`}>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200 flex items-center gap-2">
-              <Clock size={16} className="text-blue-500" />
+            <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textPrimary}`}>
+              <Clock size={16} className="text-[#5D5FEF]" />
               <span>Copier Execution Audit Log</span>
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className={`text-xs mt-0.5 ${textSecondary}`}>
               Live trade replication logs, latency records, and slippage verification.
             </p>
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400">
+          <div className={`text-[11px] font-mono ${textSecondary}`}>
             {logs.length} events logged
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-[#0D121F] border-b border-slate-200 dark:border-[#1E293B] text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <thead className={`border-b text-[10px] font-bold uppercase tracking-wider ${
+              isDayMode ? 'bg-[#FAFAFA] border-[#E5E4E2] text-[#6B7280]' : 'bg-[#0F1013] border-[#1E2026] text-[#8E95A5]'
+            }`}>
               <tr>
                 <th className="py-2.5 px-3">Timestamp</th>
                 <th className="py-2.5 px-3">Symbol</th>
@@ -738,62 +794,72 @@ export default function TradeCopier() {
                 <th className="py-2.5 px-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
+            <tbody className={`divide-y font-mono ${isDayMode ? 'divide-[#E5E4E2]' : 'divide-[#1E2026]'}`}>
               {logs.map((entry) => (
                 <tr
                   key={entry.id}
-                  className="hover:bg-slate-50/60 dark:hover:bg-[#151D2E]/60 transition-colors"
+                  className={`transition-colors ${isDayMode ? 'hover:bg-[#F9FAFB]' : 'hover:bg-[#181A20]'}`}
                 >
-                  <td className="py-3 px-3 text-slate-500 dark:text-slate-400">{entry.timestamp}</td>
-                  <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
+                  <td className={`py-3 px-3 ${textSecondary}`}>{entry.timestamp}</td>
+                  <td className={`py-3 px-3 font-bold ${textPrimary}`}>
                     {entry.symbol}
                   </td>
                   <td className="py-3 px-3">
                     <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                         entry.action === 'BUY'
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          ? isDayMode
+                            ? 'bg-[#DCFCE7] text-[#059669] border border-[#86EFAC]'
+                            : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
                           : entry.action === 'SELL'
-                          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          ? isDayMode
+                            ? 'bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]'
+                            : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                          : isDayMode
+                          ? 'bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]'
+                          : 'bg-[#181A20] text-amber-400 border border-amber-900/50'
                       }`}
                     >
                       {entry.action}
                     </span>
                   </td>
-                  <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
+                  <td className={`py-3 px-3 ${textSecondary}`}>
                     {entry.masterLot ? `${entry.masterLot.toFixed(2)}L` : '—'}
                   </td>
-                  <td className="py-3 px-3 font-bold text-slate-950 dark:text-white">
+                  <td className={`py-3 px-3 font-bold ${textPrimary}`}>
                     {entry.slaveLot ? `${entry.slaveLot.toFixed(2)}L` : '—'}
                   </td>
-                  <td className="py-3 px-3 font-sans text-slate-800 dark:text-slate-200">
+                  <td className={`py-3 px-3 font-sans ${textPrimary}`}>
                     {entry.slaveAccount}
                   </td>
                   <td className="py-3 px-3">
                     <span
                       className={`font-semibold ${
                         entry.delayMs < 20
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-amber-600 dark:text-amber-400'
+                          ? isDayMode ? 'text-[#059669]' : 'text-[#10B981]'
+                          : 'text-amber-500'
                       }`}
                     >
                       {entry.delayMs}ms
                     </span>
                   </td>
-                  <td className="py-3 px-3 text-slate-600 dark:text-slate-400">
+                  <td className={`py-3 px-3 ${textSecondary}`}>
                     {entry.slippagePips.toFixed(1)} pips
                   </td>
                   <td className="py-3 px-3 font-sans">
                     <div className="flex items-center gap-1.5">
                       {entry.status === 'COPIED' ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                          isDayMode ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]' : 'bg-[#0E291E] text-[#10B981] border border-[#144634]'
+                        }`}>
                           <CheckCircle2 size={11} />
                           Copied
                         </span>
                       ) : (
                         <span
-                          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                          className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            isDayMode ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]' : 'bg-[#2D1416] text-[#F87171] border border-[#4C1D24]'
+                          }`}
                           title={entry.reason}
                         >
                           <XCircle size={11} />
@@ -801,7 +867,7 @@ export default function TradeCopier() {
                         </span>
                       )}
                       {entry.reason && (
-                        <span className="text-[10px] text-slate-400 italic">
+                        <span className={`text-[10px] italic ${textSecondary}`}>
                           ({entry.reason})
                         </span>
                       )}

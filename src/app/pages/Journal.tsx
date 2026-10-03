@@ -13,24 +13,65 @@ import type { Trade, TradeResult, Session, Trend, OrderType, Strategy, Decision 
 
 // ─── Badges ────────────────────────────────────────────────────────────────
 function DecisionBadge({ d }: { d: string }) {
-  const s: Record<string, { bg: string; c: string }> = {
-    TAKE: { bg: 'rgba(16,185,129,0.15)', c: '#10b981' },
-    WAIT: { bg: 'rgba(234,179,8,0.15)', c: '#eab308' },
-    PASS: { bg: 'rgba(239,68,68,0.15)', c: '#ef4444' },
+  const s: Record<string, { bg: string; c: string; border: string }> = {
+    TAKE: { bg: '#DCFCE7', c: '#059669', border: '#86EFAC' },
+    WAIT: { bg: '#FEF3C7', c: '#D97706', border: '#FDE68A' },
+    PASS: { bg: '#FEE2E2', c: '#DC2626', border: '#FCA5A5' },
   };
   const x = s[d] ?? s.PASS;
-  return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: x.bg, color: x.c }}>{d}</span>;
+  return (
+    <span
+      className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
+      style={{ background: x.bg, color: x.c, border: `1px solid ${x.border}` }}
+    >
+      {d}
+    </span>
+  );
 }
 
-function ResultBadge({ r }: { r?: string }) {
-  if (!r) return <span className="text-xs" style={{ color: '#6b7280' }}>Open</span>;
-  const s: Record<string, { bg: string; c: string }> = {
-    WIN: { bg: 'rgba(16,185,129,0.15)', c: '#10b981' },
-    LOSS: { bg: 'rgba(239,68,68,0.15)', c: '#f87171' },
-    BE: { bg: 'rgba(96,165,250,0.15)', c: '#60a5fa' },
-  };
-  const x = s[r] ?? s.BE;
-  return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: x.bg, color: x.c }}>{r}</span>;
+function ResultBadge({ r, status }: { r?: string; status?: string }) {
+  if (status === 'OPEN' || !r) {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50">
+        OPEN
+      </span>
+    );
+  }
+  if (r === 'WIN') {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-[#DCFCE7] text-[#059669] border border-[#86EFAC] dark:bg-[#0E291E] dark:text-[#10B981] dark:border-[#144634]">
+        WIN
+      </span>
+    );
+  }
+  if (r === 'LOSS') {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5] dark:bg-[#2D1416] dark:text-[#F87171] dark:border-[#4C1D24]">
+        LOSS
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-[#EEF0FF] text-[#5D5FEF] border border-[#5D5FEF]/30">
+      {r}
+    </span>
+  );
+}
+
+function SideTag({ orderType }: { orderType: string }) {
+  const isLong = orderType?.toLowerCase() === 'buy';
+  return (
+    <span
+      className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+        isLong
+          ? 'bg-[#E0F2FE] text-[#0284C7] dark:bg-sky-950/40 dark:text-sky-400'
+          : 'bg-[#FEF3C7] text-[#D97706] dark:bg-amber-950/40 dark:text-amber-400'
+      }`}
+      title={isLong ? 'Long (Buy)' : 'Short (Sell)'}
+    >
+      {isLong ? 'L' : 'S'}
+    </span>
+  );
 }
 
 // ─── Date Range Calendar ───────────────────────────────────────────────────
@@ -741,8 +782,9 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
   onEdit: (t: Trade) => void;
   onDelete: (id: string) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, isDayMode } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [isSelected, setIsSelected] = useState(false);
   const hasScreenshots = trade.screenshotBefore || trade.screenshotBefore2 || trade.screenshotAfter || trade.screenshotAfter2;
 
   const getVideoPlatform = (url: string) => {
@@ -753,51 +795,147 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
     return 'Video';
   };
 
+  const isWin = (trade.pnl ?? 0) > 0 || trade.result === 'WIN';
+  const isLoss = (trade.pnl ?? 0) < 0 || trade.result === 'LOSS';
+  const pnlPercent = trade.risk ? ((trade.pnl ?? 0) / (trade.risk * 500)) * 100 : ((trade.pnl ?? 0) / 1000) * 100;
+
   return (
     <>
-      <tr style={{ borderBottom: `1px solid ${colors.rowBorder}`, cursor: 'pointer' }}
-        className="hover:bg-black/[0.02] transition-colors" onClick={() => setExpanded(e => !e)}>
-        <td className="px-4 py-3 text-xs" style={{ color: colors.textSub }}>{trade.date}</td>
-        <td className="px-4 py-3">
+      <tr
+        style={{ borderBottom: `1px solid ${colors.rowBorder}`, cursor: 'pointer' }}
+        className={`transition-colors ${isDayMode ? 'hover:bg-[#F9FAFB]' : 'hover:bg-[#181A20]'}`}
+        onClick={() => setExpanded(e => !e)}
+      >
+        {/* 1. Checkbox */}
+        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={e => setIsSelected(e.target.checked)}
+            className="w-3.5 h-3.5 rounded text-[#5D5FEF] focus:ring-[#5D5FEF] border-slate-300 dark:border-slate-700 bg-transparent cursor-pointer"
+          />
+        </td>
+
+        {/* 2. STATUS Pill */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          <ResultBadge r={trade.result} status={trade.status} />
+        </td>
+
+        {/* 3. OPEN DATE */}
+        <td className="px-3 py-3 text-xs font-mono whitespace-nowrap" style={{ color: colors.textSub }}>
+          {trade.date}
+        </td>
+
+        {/* 4. SYMBOL */}
+        <td className="px-3 py-3 whitespace-nowrap font-bold text-xs" style={{ color: colors.text }}>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm" style={{ color: colors.text }}>{trade.pair}</span>
-            <span className="text-xs" style={{ color: trade.orderType === 'Buy' ? '#10b981' : '#f87171' }}>{trade.orderType}</span>
-            {trade.isChallengedTrade && <span className="text-xs px-1 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>🔥</span>}
+            <span>{trade.pair}</span>
+            {trade.isChallengedTrade && <span className="text-[10px] px-1 rounded bg-amber-500/15 text-amber-500 font-bold">🔥</span>}
             {hasScreenshots && <Image size={11} style={{ color: colors.textMuted }} />}
-            {trade.reviewVideoUrl && <Video size={11} style={{ color: '#a78bfa' }} aria-label="Review video attached" />}
+            {trade.reviewVideoUrl && <Video size={11} className="text-[#5D5FEF]" />}
           </div>
         </td>
-        <td className="px-4 py-3 text-xs hidden md:table-cell" style={{ color: colors.textSub }}>{trade.session}</td>
-        <td className="px-4 py-3 text-xs hidden lg:table-cell" style={{ color: colors.textSub }}>{trade.strategy}</td>
-        <td className="px-4 py-3">
-          <span className="text-sm" style={{ color: trade.score >= 75 ? '#10b981' : trade.score >= 55 ? '#eab308' : '#f87171' }}>{trade.score}</span>
+
+        {/* 5. SIDE: L / S Circular Pill */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          <SideTag orderType={trade.orderType} />
         </td>
-        <td className="px-4 py-3"><DecisionBadge d={trade.decision} /></td>
-        <td className="px-4 py-3"><ResultBadge r={trade.result} /></td>
-        <td className="px-4 py-3 text-sm" style={{ color: (trade.pnl ?? 0) >= 0 ? '#10b981' : '#f87171' }}>
-          {trade.pnl !== undefined ? `${trade.pnl >= 0 ? '+' : ''}$${trade.pnl}` : '—'}
+
+        {/* 6. ENTRY & EXIT */}
+        <td className="px-3 py-3 font-mono text-xs whitespace-nowrap" style={{ color: colors.text }}>
+          <span>{trade.entryPrice ? `$${Number(trade.entryPrice).toFixed(2)}` : '—'}</span>
+          <span className="text-[#9CA3AF] mx-1">/</span>
+          <span style={{ color: colors.textSub }}>{trade.exitPrice ? `$${Number(trade.exitPrice).toFixed(2)}` : '—'}</span>
         </td>
-        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-2">
+
+        {/* 7. SIZE */}
+        <td className="px-3 py-3 font-mono text-xs whitespace-nowrap" style={{ color: colors.textSub }}>
+          {trade.quantity || 1.0}L
+        </td>
+
+        {/* 8. PNL GROSS $ */}
+        <td className="px-3 py-3 font-mono text-xs font-black whitespace-nowrap">
+          <span style={{ color: isWin ? (isDayMode ? '#059669' : '#10B981') : isLoss ? (isDayMode ? '#DC2626' : '#F87171') : colors.textSub }}>
+            {trade.pnl !== undefined ? `${trade.pnl >= 0 ? '+' : ''}$${Math.abs(trade.pnl).toFixed(2)}` : '—'}
+          </span>
+        </td>
+
+        {/* 9. PNL GROSS % */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          {trade.pnl !== undefined ? (
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                isWin
+                  ? isDayMode
+                    ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                    : 'bg-[#0E291E] text-[#10B981] border-[#144634]'
+                  : isLoss
+                  ? isDayMode
+                    ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]'
+                    : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%
+            </span>
+          ) : (
+            <span className="text-xs text-[#9CA3AF]">—</span>
+          )}
+        </td>
+
+        {/* 10. SETUPS & MISTAKES */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-[#EEF0FF] dark:bg-[#181A20] text-[#5D5FEF] border border-[#5D5FEF]/20">
+              {trade.strategy || 'Order Block'}
+            </span>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                onEdit(trade);
+              }}
+              className="w-5 h-5 rounded-md flex items-center justify-center bg-[#F2F1EF] dark:bg-[#1E2026] text-[#6B7280] dark:text-[#8E95A5] hover:text-[#5D5FEF] transition-colors"
+              title="Tag Setups / Notes"
+            >
+              <Pencil size={10} />
+            </button>
+          </div>
+        </td>
+
+        {/* Actions */}
+        <td className="px-3 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1.5">
             {trade.status === 'OPEN' && (
-              <button onClick={() => onLogResult(trade)} className="text-xs px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
-                style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>Log Result</button>
+              <button
+                onClick={() => onLogResult(trade)}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md transition-all hover:opacity-90 bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] dark:bg-amber-950/40 dark:text-amber-400"
+              >
+                Log Result
+              </button>
             )}
-            <button onClick={() => onEdit(trade)}
-              className="opacity-50 hover:opacity-100 transition-opacity"
-              title="Edit trade">
-              <Pencil size={13} style={{ color: colors.textSub }} />
+            <button
+              onClick={() => onEdit(trade)}
+              className="p-1 text-[#6B7280] hover:text-[#5D5FEF] dark:text-[#8E95A5] dark:hover:text-white transition-colors"
+              title="Edit trade"
+            >
+              <Pencil size={13} />
             </button>
-            <button onClick={() => onDelete(trade.id)} className="opacity-40 hover:opacity-80 transition-opacity">
-              <Trash2 size={13} style={{ color: '#f87171' }} />
+            <button
+              onClick={() => onDelete(trade.id)}
+              className="p-1 text-[#DC2626] hover:text-red-700 opacity-60 hover:opacity-100 transition-opacity"
+              title="Delete trade"
+            >
+              <Trash2 size={13} />
             </button>
-            <span style={{ color: colors.textFaint }}>{expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+            <span style={{ color: colors.textFaint }} className="ml-1">
+              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </span>
           </div>
         </td>
       </tr>
       {expanded && (
         <tr style={{ borderBottom: `1px solid ${colors.rowBorder}`, background: colors.inputBg }}>
-          <td colSpan={9} className="px-4 py-4">
+          <td colSpan={11} className="px-4 py-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               {[
                 { label: 'Mental Focus', val: `${trade.mentalFocus} / 30` },
@@ -859,16 +997,16 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
                 </p>
                 <a href={trade.reviewVideoUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm transition-all hover:opacity-90"
-                  style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd', textDecoration: 'none' }}
+                  style={{ background: 'rgba(93,95,239,0.12)', border: '1px solid rgba(93,95,239,0.3)', color: '#5D5FEF', textDecoration: 'none' }}
                   onClick={e => e.stopPropagation()}>
-                  <span className="flex items-center justify-center rounded-full" style={{ background: 'rgba(124,58,237,0.25)', width: 28, height: 28, minWidth: 28 }}>
-                    <Play size={12} style={{ color: '#a78bfa', marginLeft: 1 }} />
+                  <span className="flex items-center justify-center rounded-full" style={{ background: 'rgba(93,95,239,0.25)', width: 28, height: 28, minWidth: 28 }}>
+                    <Play size={12} style={{ color: '#5D5FEF', marginLeft: 1 }} />
                   </span>
                   <div>
-                    <p className="text-xs" style={{ color: '#a78bfa' }}>{getVideoPlatform(trade.reviewVideoUrl)} Review</p>
+                    <p className="text-xs font-bold" style={{ color: '#5D5FEF' }}>{getVideoPlatform(trade.reviewVideoUrl)} Review</p>
                     <p className="text-xs mt-0.5 truncate max-w-xs" style={{ color: colors.textMuted }}>{trade.reviewVideoUrl}</p>
                   </div>
-                  <ExternalLink size={12} style={{ color: '#7c3aed', marginLeft: 'auto' }} />
+                  <ExternalLink size={12} style={{ color: '#5D5FEF', marginLeft: 'auto' }} />
                 </a>
               </div>
             )}
@@ -882,7 +1020,7 @@ function TradeRow({ trade, onLogResult, onEdit, onDelete }: {
 // ─── Main Journal Page ─────────────────────────────────────────────────────
 export default function Journal() {
   const { trades, updateTrade, deleteTrade } = useTradesContext();
-  const { colors } = useTheme();
+  const { colors, isDayMode } = useTheme();
   const [searchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [filterResult, setFilterResult] = useState('ALL');
@@ -942,86 +1080,193 @@ export default function Journal() {
   };
 
   const totalPnL = filtered.filter(t => t.pnl !== undefined).reduce((a, t) => a + (t.pnl ?? 0), 0);
-  const wins = filtered.filter(t => t.result === 'WIN').length;
-  const losses = filtered.filter(t => t.result === 'LOSS').length;
+  const wins = filtered.filter(t => (t.pnl ?? 0) > 0 || t.result === 'WIN').length;
+  const losses = filtered.filter(t => (t.pnl ?? 0) < 0 || t.result === 'LOSS').length;
+  const grossWins = filtered.filter(t => (t.pnl ?? 0) > 0).reduce((a, t) => a + (t.pnl ?? 0), 0);
+  const grossLosses = Math.abs(filtered.filter(t => (t.pnl ?? 0) < 0).reduce((a, t) => a + (t.pnl ?? 0), 0));
+  const profitFactor = grossLosses === 0 ? (grossWins > 0 ? 9.99 : 0) : Number((grossWins / grossLosses).toFixed(2));
+  const totalDecided = wins + losses;
+  const winRatePct = totalDecided > 0 ? (wins / totalDecided) * 100 : 0;
+  const lossRatePct = totalDecided > 0 ? (losses / totalDecided) * 100 : 0;
 
-  const filterBtn = (active: boolean) => ({
-    background: active ? 'rgba(245,158,11,0.15)' : 'transparent',
-    color: active ? '#f59e0b' : colors.textMuted,
-  });
+  const cardBg = isDayMode ? 'bg-white border-[#E5E4E2]' : 'bg-[#131418] border-[#1E2026]';
 
   return (
-    <div className="p-4 lg:p-6 space-y-5">
+    <div className={`p-4 lg:p-6 space-y-4 min-h-full font-sans ${isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'}`}>
       {logTarget && <LogResultModal trade={logTarget} onClose={() => setLogTarget(null)} onSave={handleLogResult} />}
       {editTarget && <EditTradeModal trade={editTarget} onClose={() => setEditTarget(null)} onSave={handleSaveEdit} />}
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl" style={{ color: colors.text }}>Trade Journal</h1>
-          <p className="text-sm mt-0.5" style={{ color: colors.textMuted }}>
-            {filtered.length} trades · {wins}W {losses}L ·{' '}
-            <span style={{ color: totalPnL >= 0 ? '#10b981' : '#f87171' }}>{totalPnL >= 0 ? '+' : ''}${totalPnL}</span>
+
+      {/* ── Top Summary Header: TradeZella Minimal KPI Banner ── */}
+      <div className={`rounded-xl border p-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-xs ${cardBg}`}>
+        {/* Gross P&L */}
+        <div className={`flex-1 border-b lg:border-b-0 lg:border-r pb-3 lg:pb-0 lg:pr-6 ${isDayMode ? 'border-[#E5E4E2]' : 'border-[#252830]'}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] dark:text-[#8E95A5] mb-1">
+            Journal Gross P&L
           </p>
+          <div className="flex items-center gap-2.5">
+            <span className={`text-2xl font-black font-mono tracking-tight ${totalPnL >= 0 ? (isDayMode ? 'text-[#059669]' : 'text-[#10B981]') : (isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]')}`}>
+              {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+            </span>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                totalPnL >= 0
+                  ? isDayMode
+                    ? 'bg-[#DCFCE7] text-[#059669] border-[#86EFAC]'
+                    : 'bg-[#0E291E] text-[#10B981] border-[#144634]'
+                  : isDayMode
+                  ? 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]'
+                  : 'bg-[#2D1416] text-[#F87171] border-[#4C1D24]'
+              }`}
+            >
+              {filtered.length} Trades Logged
+            </span>
+          </div>
+        </div>
+
+        {/* Profit Factor */}
+        <div className={`flex-1 border-b lg:border-b-0 lg:border-r pb-3 lg:pb-0 lg:pr-6 ${isDayMode ? 'border-[#E5E4E2]' : 'border-[#252830]'}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] dark:text-[#8E95A5] mb-1">
+            Profit Factor
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-black font-mono tracking-tight">
+              {profitFactor.toFixed(2)}
+            </span>
+            <span className="text-xs text-[#6B7280] dark:text-[#8E95A5]">
+              Gross: ${grossWins.toFixed(0)} / ${grossLosses.toFixed(0)}
+            </span>
+          </div>
+        </div>
+
+        {/* Win / Loss Ratio Split Bar */}
+        <div className="flex-[1.4] flex flex-col justify-center">
+          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+            <span className={isDayMode ? 'text-[#059669]' : 'text-[#10B981]'}>
+              Win {winRatePct.toFixed(1)}% | {wins}
+            </span>
+            <span className={isDayMode ? 'text-[#DC2626]' : 'text-[#F87171]'}>
+              {losses} | Loss {lossRatePct.toFixed(1)}%
+            </span>
+          </div>
+          <div className={`w-full h-2.5 rounded-full overflow-hidden flex p-0.5 gap-0.5 ${isDayMode ? 'bg-[#E5E4E2]' : 'bg-[#1E2026]'}`}>
+            <div
+              className={`h-full rounded-l-full transition-all duration-500 ${isDayMode ? 'bg-[#059669]' : 'bg-[#10B981]'}`}
+              style={{ width: `${Math.max(winRatePct > 0 ? 5 : 0, winRatePct)}%` }}
+            />
+            <div
+              className={`h-full rounded-r-full transition-all duration-500 ${isDayMode ? 'bg-[#DC2626]' : 'bg-[#F87171]'}`}
+              style={{ width: `${Math.max(lossRatePct > 0 ? 5 : 0, lossRatePct)}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        {/* Search */}
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-          <Search size={13} style={{ color: colors.textMuted }} />
-          <input type="text" placeholder="Search pair, strategy..." value={search} onChange={e => setSearch(e.target.value)}
-            className="text-sm bg-transparent outline-none w-40" style={{ color: colors.text }} />
+      {/* ── Filters Bar ── */}
+      <div className={`rounded-xl border p-3 flex flex-wrap gap-2.5 items-center justify-between shadow-xs ${cardBg}`}>
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Search */}
+          <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border ${isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]'}`}>
+            <Search size={13} className="text-[#9CA3AF]" />
+            <input
+              type="text"
+              placeholder="Search pair, setup..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="text-xs bg-transparent outline-none w-36 text-inherit"
+            />
+          </div>
+
+          {/* Date Range */}
+          <DateRangeFilter
+            preset={datePreset}
+            customStart={customStart}
+            customEnd={customEnd}
+            onPresetChange={setDatePreset}
+            onRangeChange={(s, e) => { setCustomStart(s); setCustomEnd(e); }}
+          />
+
+          {/* Status */}
+          <div className={`flex rounded-lg overflow-hidden border p-0.5 ${isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]'}`}>
+            {(['ALL', 'OPEN', 'CLOSED'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${
+                  filterStatus === s
+                    ? isDayMode ? 'bg-white text-[#5D5FEF] shadow-xs' : 'bg-[#1E2026] text-white'
+                    : 'text-[#6B7280] dark:text-[#8E95A5]'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          {/* Result */}
+          <div className={`flex rounded-lg overflow-hidden border p-0.5 ${isDayMode ? 'bg-[#F9FAFB] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]'}`}>
+            {['ALL', 'WIN', 'LOSS', 'BE'].map(r => (
+              <button
+                key={r}
+                onClick={() => setFilterResult(r)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${
+                  filterResult === r
+                    ? isDayMode ? 'bg-white text-[#5D5FEF] shadow-xs' : 'bg-[#1E2026] text-white'
+                    : 'text-[#6B7280] dark:text-[#8E95A5]'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Date Range */}
-        <DateRangeFilter preset={datePreset} customStart={customStart} customEnd={customEnd}
-          onPresetChange={setDatePreset} onRangeChange={(s, e) => { setCustomStart(s); setCustomEnd(e); }} />
-
-        {/* Status */}
-        <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
-          {(['ALL', 'OPEN', 'CLOSED'] as const).map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)} className="px-3 py-2 text-xs transition-all" style={filterBtn(filterStatus === s)}>{s}</button>
-          ))}
-        </div>
-
-        {/* Result */}
-        <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
-          {['ALL', 'WIN', 'LOSS', 'BE'].map(r => (
-            <button key={r} onClick={() => setFilterResult(r)} className="px-3 py-2 text-xs transition-all" style={filterBtn(filterResult === r)}>{r}</button>
-          ))}
-        </div>
-
-        {/* Session */}
-        <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
-          {['ALL', 'New York', 'London'].map(s => (
-            <button key={s} onClick={() => setFilterSession(s)} className="px-3 py-2 text-xs transition-all" style={filterBtn(filterSession === s)}>
-              {s === 'New York' ? 'NY' : s === 'London' ? 'LDN' : s}
-            </button>
-          ))}
-        </div>
+        <span className="text-xs text-[#6B7280] dark:text-[#8E95A5] font-medium">
+          Showing {filtered.length} entries
+        </span>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+      {/* ── Trade Log Table ── */}
+      <div className={`rounded-xl border shadow-xs overflow-hidden ${cardBg}`}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-left text-xs">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                {['Date', 'Pair', 'Session', 'Strategy', 'Score', 'Decision', 'Result', 'P&L', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs uppercase tracking-wider" style={{ color: colors.textMuted }}>{h}</th>
-                ))}
+              <tr className={`border-b text-[11px] font-semibold tracking-wider uppercase ${
+                isDayMode
+                  ? 'bg-[#FAFAFA] border-[#E5E4E2] text-[#6B7280]'
+                  : 'bg-[#0F1013] border-[#1E2026] text-[#8E95A5]'
+              }`}>
+                <th className="px-3 py-3 w-8">
+                  <input type="checkbox" className="w-3.5 h-3.5 rounded text-[#5D5FEF]" readOnly />
+                </th>
+                <th className="px-3 py-3">STATUS</th>
+                <th className="px-3 py-3">OPEN DATE</th>
+                <th className="px-3 py-3">SYMBOL</th>
+                <th className="px-3 py-3">SIDE</th>
+                <th className="px-3 py-3">ENTRY / EXIT</th>
+                <th className="px-3 py-3">SIZE</th>
+                <th className="px-3 py-3">PNL GROSS $</th>
+                <th className="px-3 py-3">PNL %</th>
+                <th className="px-3 py-3">SETUPS & MISTAKES</th>
+                <th className="px-3 py-3 text-right">ACTIONS</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[#E5E4E2] dark:divide-[#1E2026]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm" style={{ color: colors.textMuted }}>
-                    No trades found. {datePreset !== 'ALL' ? 'Try expanding the date range.' : 'Use the Trade Scorer to log your first trade.'}
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-[#9CA3AF]">
+                    No trades found. Use the Pre-Trade Quality Scorer to log setups.
                   </td>
                 </tr>
               ) : (
-                filtered.map(t => <TradeRow key={t.id} trade={t} onLogResult={setLogTarget} onEdit={setEditTarget} onDelete={deleteTrade} />)
+                filtered.map(t => (
+                  <TradeRow
+                    key={t.id}
+                    trade={t}
+                    onLogResult={setLogTarget}
+                    onEdit={setEditTarget}
+                    onDelete={deleteTrade}
+                  />
+                ))
               )}
             </tbody>
           </table>
