@@ -32,6 +32,8 @@ export interface InvestorConnectionConfig {
   lastSyncedAt?: string;
   autoSyncIntervalSec: number; // e.g., 30s or live WebSocket
   externalAccountId?: string;  // Cloud bridge ID (e.g. MetaApi account ID)
+  metaApiToken?: string;       // MetaApi cloud bridge token for real live sync
+  region?: string;             // MetaApi runner region (e.g. "london")
 }
 
 export interface Account {

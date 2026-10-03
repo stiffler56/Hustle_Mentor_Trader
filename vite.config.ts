@@ -31,6 +31,23 @@ export default defineConfig({
     },
   },
 
+  server: {
+    proxy: {
+      '/api-metaapi-provisioning': {
+        target: 'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-metaapi-provisioning/, ''),
+        secure: false,
+      },
+      '/api-metaapi-client': {
+        target: 'https://mt-client-api-v1.london.agiliumtrade.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-metaapi-client/, ''),
+        secure: false,
+      },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

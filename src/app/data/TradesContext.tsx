@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import type { Trade } from './types';
 import type { Account } from './accountTypes';
 import { useAuthContext, SERVER_BASE } from './AuthContext';
+import { requestBrokerSync } from '../utils/brokerSync';
 
 const STORAGE_KEY = 'hustle_trading_v1'; // only used for guest mode
 
@@ -163,34 +164,23 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
     setBrokerSyncError('');
 
     try {
-      const res = await fetch(`${SERVER_BASE}/broker/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({
-          accountId: account.id,
-          connection: account.connection,
-        }),
+      const data = await requestBrokerSync({
+        accountId: account.id,
+        connection: account.connection,
+        accessToken,
       });
 
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || `Broker sync failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
       const incomingTrades: Trade[] = Array.isArray(data.trades) ? data.trades : [];
 
       let newTradesCount = 0;
       let updatedTradesCount = 0;
 
       setTrades(prev => {
+        const cleanPrev = prev.filter(t => !t.notes?.includes('Auto-synced MT ticket'));
         const incomingMap = new Map(incomingTrades.map(t => [t.brokerTradeId || t.id, t]));
-        const existingKeys = new Set(prev.map(t => t.brokerTradeId || t.id));
+        const existingKeys = new Set(cleanPrev.map(t => t.brokerTradeId || t.id));
 
-        const updatedExisting = prev.map(existing => {
+        const updatedExisting = cleanPrev.map(existing => {
           const key = existing.brokerTradeId || existing.id;
           const inc = incomingMap.get(key);
           if (inc) {
@@ -223,8 +213,8 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
       return {
         newTradesCount,
         updatedTradesCount,
-        balance: data.currentBalance,
-        equity: data.currentEquity,
+        balance: data.balance,
+        equity: data.equity,
         trades: incomingTrades,
       };
     } catch (err: any) {
