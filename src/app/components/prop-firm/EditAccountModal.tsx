@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Edit3, Trash2, RefreshCw, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Trash2, RotateCcw, ArrowRightCircle } from 'lucide-react';
 import type { Account, AccountStatus, PropPhase } from '../../data/accountTypes';
 
 interface EditAccountModalProps {
@@ -7,9 +7,9 @@ interface EditAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (id: string, updates: Partial<Account>) => void;
-  onDelete: (id: string) => void;
-  onReset: (id: string) => void;
-  onAdvancePhase: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onReset?: (id: string) => void;
+  onAdvancePhase?: (id: string) => void;
 }
 
 export const EditAccountModal: React.FC<EditAccountModalProps> = ({
@@ -32,6 +32,24 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState(account.propDetails?.maxDrawdownLimitPct || 10);
   const [profitTargetPct, setProfitTargetPct] = useState(account.propDetails?.profitTargetPct || 8);
   const [notes, setNotes] = useState(account.notes || '');
+  const [investorPassword, setInvestorPassword] = useState(account.connection?.investorPassword || '');
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(account.isAutoSyncEnabled ?? false);
+
+  useEffect(() => {
+    setName(account.name);
+    setAccountNumber(account.accountNumber);
+    setProvider(account.provider);
+    setCurrentBalance(account.currentBalance);
+    setStatus(account.status);
+    setServerType(account.serverType || '');
+    setPhase(account.propDetails?.phase || 'Phase 1');
+    setDailyDrawdownLimitPct(account.propDetails?.dailyDrawdownLimitPct || 5);
+    setMaxDrawdownLimitPct(account.propDetails?.maxDrawdownLimitPct || 10);
+    setProfitTargetPct(account.propDetails?.profitTargetPct || 8);
+    setNotes(account.notes || '');
+    setInvestorPassword(account.connection?.investorPassword || '');
+    setIsAutoSyncEnabled(account.isAutoSyncEnabled ?? false);
+  }, [account, isOpen]);
 
   if (!isOpen) return null;
 
@@ -54,6 +72,17 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
       maxDrawdownLimitPct: Number(maxDrawdownLimitPct),
     } : undefined;
 
+    const connection = investorPassword.trim() ? {
+      platform: account.connection?.platform || (account.platform === 'MetaTrader 4' ? ('MT4' as const) : ('MT5' as const)),
+      login: accountNumber.replace('#', '').trim(),
+      investorPassword: investorPassword.trim(),
+      server: serverType.trim() || account.connection?.server || 'ICMarketsSC-Live01',
+      syncStatus: account.connection?.syncStatus || ('connected' as const),
+      lastSyncedAt: account.connection?.lastSyncedAt,
+      autoSyncIntervalSec: account.connection?.autoSyncIntervalSec || 30,
+      externalAccountId: account.connection?.externalAccountId,
+    } : undefined;
+
     onUpdate(account.id, {
       name,
       accountNumber,
@@ -65,6 +94,8 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
       propDetails: updatedPropDetails,
       isBreached: status === 'Breached' || status === 'Not Passed',
       notes,
+      connection,
+      isAutoSyncEnabled: Boolean(connection && isAutoSyncEnabled),
     });
     onClose();
   };
@@ -262,6 +293,36 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
               placeholder="e.g. Raw Spread Demo / Live Server"
               className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-blue-600 outline-none"
             />
+          </div>
+
+          {/* MT4 / MT5 Investor Sync */}
+          <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800">
+                MT4 / MT5 Investor Password Sync
+              </span>
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAutoSyncEnabled}
+                  onChange={e => setIsAutoSyncEnabled(e.target.checked)}
+                  className="rounded text-blue-600 w-3.5 h-3.5"
+                />
+                <span>Auto-Sync</span>
+              </label>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">
+                Read-Only Investor Password
+              </label>
+              <input
+                type="password"
+                value={investorPassword}
+                onChange={e => setInvestorPassword(e.target.value)}
+                placeholder="Enter read-only password for automated sync"
+                className="w-full rounded-lg px-3 py-2 text-xs bg-white border border-slate-200 font-mono text-slate-900 outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
 
           <div>

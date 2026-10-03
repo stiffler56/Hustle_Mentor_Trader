@@ -23,6 +23,17 @@ export interface ConsistencyMetrics {
   winRate: number;
 }
 
+export interface InvestorConnectionConfig {
+  platform: 'MT4' | 'MT5';
+  login: string;
+  investorPassword: string; // Read-only password
+  server: string;           // e.g., "ICMarketsSC-Live01"
+  syncStatus: 'connected' | 'syncing' | 'failed' | 'disconnected';
+  lastSyncedAt?: string;
+  autoSyncIntervalSec: number; // e.g., 30s or live WebSocket
+  externalAccountId?: string;  // Cloud bridge ID (e.g. MetaApi account ID)
+}
+
 export interface Account {
   id: string;
   accountNumber: string; // e.g., "#20823275"
@@ -48,6 +59,10 @@ export interface Account {
   consistencyMetrics?: ConsistencyMetrics;
   notes?: string;
   isBreached?: boolean;
+
+  // Broker Sync
+  connection?: InvestorConnectionConfig;
+  isAutoSyncEnabled?: boolean;
 }
 
 // Backward compatibility aliases

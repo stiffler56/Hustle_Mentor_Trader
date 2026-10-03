@@ -68,6 +68,16 @@ export interface Trade {
   isChallengedTrade?: boolean;
   accountId?: string; // Prop firm account ID if assigned
 
+  // Broker Sync
+  brokerTradeId?: string;
+  brokerAccountId?: string;
+  brokerType?: string;
+  entryPrice?: number;
+  exitPrice?: number;
+  quantity?: number;
+  commission?: number;
+  swap?: number;
+
   // Elevation features: stored in the same trade object so cloud sync and GitHub sync preserve the data.
   psychologicalMetrics?: PsychologicalMetrics;
   aiAnalysis?: AIAnalysis;
@@ -101,6 +111,7 @@ export type {
   PropPhase,
   PropDetails,
   ConsistencyMetrics,
+  InvestorConnectionConfig,
   ProviderPreset,
   PropAccount,
   AccountPhase,

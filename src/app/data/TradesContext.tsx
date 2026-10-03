@@ -1,10 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { Trade } from './types';
+import type { Account } from './accountTypes';
 import { useAuthContext, SERVER_BASE } from './AuthContext';
 
 const STORAGE_KEY = 'hustle_trading_v1'; // only used for guest mode
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
+
+export interface BrokerSyncResult {
+  newTradesCount: number;
+  updatedTradesCount: number;
+  balance?: number;
+  equity?: number;
+  trades?: Trade[];
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface TradesContextType {
@@ -19,6 +28,9 @@ interface TradesContextType {
   lastSynced: Date | null;
   syncNow:    () => Promise<void>;
   syncError:  string;
+  syncBrokerAccount: (account: Account) => Promise<BrokerSyncResult>;
+  isBrokerSyncing: boolean;
+  brokerSyncError: string;
 }
 
 const TradesContext = createContext<TradesContextType | null>(null);
@@ -43,6 +55,8 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
   const [syncStatus,    setSyncStatus]    = useState<SyncStatus>('idle');
   const [lastSynced,    setLastSynced]    = useState<Date | null>(null);
   const [syncError,     setSyncError]     = useState('');
+  const [isBrokerSyncing, setIsBrokerSyncing] = useState(false);
+  const [brokerSyncError, setBrokerSyncError] = useState('');
 
   const syncTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSyncing      = useRef(false);
@@ -139,6 +153,137 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
     await pushToCloud(trades, accessToken);
   }, [accessToken, trades, pushToCloud]);
 
+  // ── MT4 / MT5 Broker Sync ────────────────────────────────────────────────
+  const syncBrokerAccount = useCallback(async (account: Account): Promise<BrokerSyncResult> => {
+    if (!account.connection) {
+      throw new Error('Account has no broker connection configured.');
+    }
+
+    setIsBrokerSyncing(true);
+    setBrokerSyncError('');
+
+    try {
+      const res = await fetch(`${SERVER_BASE}/broker/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          accountId: account.id,
+          connection: account.connection,
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Broker sync failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      const incomingTrades: Trade[] = Array.isArray(data.trades) ? data.trades : [];
+
+      let newTradesCount = 0;
+      let updatedTradesCount = 0;
+
+      setTrades(prev => {
+        const incomingMap = new Map(incomingTrades.map(t => [t.brokerTradeId || t.id, t]));
+        const existingKeys = new Set(prev.map(t => t.brokerTradeId || t.id));
+
+        const updatedExisting = prev.map(existing => {
+          const key = existing.brokerTradeId || existing.id;
+          const inc = incomingMap.get(key);
+          if (inc) {
+            if (
+              existing.status !== inc.status ||
+              existing.pnl !== inc.pnl ||
+              existing.closedAt !== inc.closedAt ||
+              existing.exitPrice !== inc.exitPrice
+            ) {
+              updatedTradesCount++;
+              return { ...existing, ...inc };
+            }
+            return existing;
+          }
+          return existing;
+        });
+
+        const brandNew: Trade[] = [];
+        for (const inc of incomingTrades) {
+          const key = inc.brokerTradeId || inc.id;
+          if (!existingKeys.has(key)) {
+            brandNew.push(inc);
+            newTradesCount++;
+          }
+        }
+
+        return [...brandNew, ...updatedExisting];
+      });
+
+      return {
+        newTradesCount,
+        updatedTradesCount,
+        balance: data.currentBalance,
+        equity: data.currentEquity,
+        trades: incomingTrades,
+      };
+    } catch (err: any) {
+      const msg = err.message || 'Failed to sync broker account';
+      setBrokerSyncError(msg);
+      throw err;
+    } finally {
+      setIsBrokerSyncing(false);
+    }
+  }, [accessToken]);
+
+  // ── Auto-sync polling loop for accounts with isAutoSyncEnabled ────────────
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        const raw = localStorage.getItem('hustle_accounts_v2');
+        if (!raw) return;
+        const parsed: Account[] = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+
+        const autoAccounts = parsed.filter(
+          a => a.isAutoSyncEnabled && a.connection && a.connection.syncStatus === 'connected'
+        );
+
+        for (const acc of autoAccounts) {
+          const intervalMs = (acc.connection?.autoSyncIntervalSec || 30) * 1000;
+          const lastSync = acc.connection?.lastSyncedAt ? new Date(acc.connection.lastSyncedAt).getTime() : 0;
+          if (Date.now() - lastSync >= intervalMs) {
+            syncBrokerAccount(acc).then(res => {
+              if (res) {
+                try {
+                  const currentRaw = localStorage.getItem('hustle_accounts_v2');
+                  const currentList: Account[] = currentRaw ? JSON.parse(currentRaw) : parsed;
+                  const updated = currentList.map(item => {
+                    if (item.id !== acc.id) return item;
+                    return {
+                      ...item,
+                      currentBalance: res.balance ?? item.currentBalance,
+                      currentEquity: res.equity ?? item.currentEquity,
+                      connection: item.connection ? {
+                        ...item.connection,
+                        lastSyncedAt: new Date().toISOString(),
+                        syncStatus: 'connected' as const,
+                      } : undefined,
+                    };
+                  });
+                  localStorage.setItem('hustle_accounts_v2', JSON.stringify(updated));
+                  window.dispatchEvent(new CustomEvent('hustle_accounts_updated', { detail: { accountId: acc.id } }));
+                } catch {}
+              }
+            }).catch(() => {});
+          }
+        }
+      } catch {}
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [syncBrokerAccount]);
+
   // ── Trade CRUD ────────────────────────────────────────────────────────────
   const addTrade    = (trade: Trade) => setTrades(prev => [trade, ...prev]);
   const updateTrade = (id: string, updates: Partial<Trade>) =>
@@ -164,6 +309,7 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
       trades, tradesLoading,
       addTrade, updateTrade, deleteTrade, clearTrades, importTrades,
       syncStatus, lastSynced, syncNow, syncError,
+      syncBrokerAccount, isBrokerSyncing, brokerSyncError,
     }}>
       {children}
     </TradesContext.Provider>

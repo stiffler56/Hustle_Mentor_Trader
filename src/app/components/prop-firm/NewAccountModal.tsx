@@ -35,6 +35,8 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
   const [minTradingDays, setMinTradingDays] = useState<number>(0);
   const [accountNumber, setAccountNumber] = useState(() => `#${Math.floor(10000000 + Math.random() * 90000000)}`);
   const [notes, setNotes] = useState('');
+  const [investorPassword, setInvestorPassword] = useState('');
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(true);
 
   if (!isOpen) return null;
 
@@ -124,6 +126,15 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
     const isProp = category.startsWith('prop');
     const status: AccountStatus = isProp ? 'Ongoing' : 'Active';
 
+    const connection = investorPassword.trim() ? {
+      platform: platform === 'MetaTrader 4' ? ('MT4' as const) : ('MT5' as const),
+      login: accountNumber.replace('#', '').trim(),
+      investorPassword: investorPassword.trim(),
+      server: serverType.trim() || 'ICMarketsSC-Live01',
+      syncStatus: 'connected' as const,
+      autoSyncIntervalSec: 30,
+    } : undefined;
+
     onAddAccount({
       accountNumber: accountNumber.startsWith('#') ? accountNumber : `#${accountNumber}`,
       name: name.trim() || `${provider} Account`,
@@ -159,6 +170,8 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
       } : undefined,
       notes,
       isBreached: false,
+      connection,
+      isAutoSyncEnabled: Boolean(connection && isAutoSyncEnabled),
     });
 
     onClose();
@@ -410,6 +423,38 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
               />
             </div>
           </div>
+
+          {/* MT4 / MT5 Investor Sync */}
+          {(platform === 'MetaTrader 4' || platform === 'MetaTrader 5') && (
+            <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">
+                  Automated Investor Password Sync (Read-Only)
+                </span>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isAutoSyncEnabled}
+                    onChange={e => setIsAutoSyncEnabled(e.target.checked)}
+                    className="rounded text-blue-600 w-3.5 h-3.5"
+                  />
+                  <span>Auto-Sync</span>
+                </label>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">
+                  Read-Only Investor Password (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={investorPassword}
+                  onChange={e => setInvestorPassword(e.target.value)}
+                  placeholder="Enter investor password for automated background sync"
+                  className="w-full rounded-lg px-3 py-2 text-xs bg-white border border-slate-200 font-mono text-slate-900 outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

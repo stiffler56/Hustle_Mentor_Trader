@@ -156,6 +156,21 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [accounts]);
 
+  // Sync from outside updates (e.g. background broker sync)
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) setAccounts(parsed);
+        }
+      } catch {}
+    };
+    window.addEventListener('hustle_accounts_updated', handleUpdate);
+    return () => window.removeEventListener('hustle_accounts_updated', handleUpdate);
+  }, []);
+
   // Save selected account ID
   useEffect(() => {
     if (selectedAccountId) {
@@ -256,6 +271,14 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
       };
     }));
   }, [trades]);
+
+  useEffect(() => {
+    if (!accounts.length || !trades.length) return;
+    const accountIdsWithTrades = new Set(trades.map(t => t.accountId).filter(Boolean));
+    for (const accId of accountIdsWithTrades) {
+      syncAccountMetricsFromTrades(accId!);
+    }
+  }, [trades, syncAccountMetricsFromTrades]);
 
   const addAccount = (accountData: Omit<Account, 'id' | 'startDate'> & { id?: string; startDate?: string }): Account => {
     const id = accountData.id || `acc-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;

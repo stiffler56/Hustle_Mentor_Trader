@@ -16,8 +16,11 @@ import {
   TrendingUp,
   TrendingDown,
   Layers,
+  Zap,
+  RefreshCw,
 } from 'lucide-react';
 import { useAccountsContext } from '../data/PropAccountsContext';
+import { useTradesContext } from '../data/TradesContext';
 import type { Account, AccountCategory } from '../data/accountTypes';
 import { AccountMetricCard } from '../components/prop-firm/AccountMetricCard';
 import { AccountDrawdownChart } from '../components/prop-firm/AccountDrawdownChart';
@@ -26,6 +29,7 @@ import { AccountTradesTable } from '../components/prop-firm/AccountTradesTable';
 import { NewAccountModal } from '../components/prop-firm/NewAccountModal';
 import { EditAccountModal } from '../components/prop-firm/EditAccountModal';
 import { QuickTradeModal } from '../components/prop-firm/QuickTradeModal';
+import { BrokerSyncModal } from '../components/prop-firm/BrokerSyncModal';
 
 type FilterTab = 'ALL' | 'PROP' | 'BROKER';
 
@@ -43,12 +47,49 @@ export default function AccountsPage() {
     accountTrades,
   } = useAccountsContext();
 
+  const { syncBrokerAccount, isBrokerSyncing } = useTradesContext();
+
   const [isNewAccountOpen, setIsNewAccountOpen] = useState(false);
   const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
   const [isQuickTradeOpen, setIsQuickTradeOpen] = useState(false);
+  const [isBrokerSyncOpen, setIsBrokerSyncOpen] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<FilterTab>('ALL');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const handleManualSync = async () => {
+    if (!selectedAccount?.connection) {
+      setIsBrokerSyncOpen(true);
+      return;
+    }
+    try {
+      const res = await syncBrokerAccount(selectedAccount);
+      const msg = `Synced ${res.newTradesCount} new, ${res.updatedTradesCount} updated trades.`;
+      setSyncFeedback(msg);
+      updateAccount(selectedAccount.id, {
+        currentBalance: res.balance ?? selectedAccount.currentBalance,
+        currentEquity: res.equity ?? selectedAccount.currentEquity,
+        connection: {
+          ...selectedAccount.connection,
+          lastSyncedAt: new Date().toISOString(),
+          syncStatus: 'connected',
+        },
+      });
+      setTimeout(() => setSyncFeedback(null), 4000);
+    } catch (err: any) {
+      setSyncFeedback(err.message || 'Sync failed');
+      setTimeout(() => setSyncFeedback(null), 4000);
+    }
+  };
+
+  const handleToggleAutoSync = () => {
+    if (!selectedAccount?.connection) return;
+    const next = !selectedAccount.isAutoSyncEnabled;
+    updateAccount(selectedAccount.id, {
+      isAutoSyncEnabled: next,
+    });
+  };
 
   // Filter accounts for left master list
   const filteredAccounts = useMemo(() => {
@@ -333,10 +374,18 @@ export default function AccountsPage() {
                   </div>
 
                   {/* Subtitle: Category & Platform */}
-                  <p className="text-[11px] text-slate-500 font-medium mb-2.5 truncate">
-                    {acc.serverType ? `${acc.serverType} • ` : ''}${acc.platform}
-                    {isChallenge && acc.propDetails ? ` • ${acc.propDetails.modelType}` : ''}
-                  </p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mb-2.5 truncate">
+                    <span className="truncate">
+                      {acc.serverType ? `${acc.serverType} • ` : ''}${acc.platform}
+                      {isChallenge && acc.propDetails ? ` • ${acc.propDetails.modelType}` : ''}
+                    </span>
+                    {acc.connection?.syncStatus === 'connected' && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{acc.connection.platform}</span>
+                      </span>
+                    )}
+                  </div>
 
                   {/* Metrics Row: Balance + Net PnL & Return % */}
                   <div className="flex items-baseline justify-between pt-2 border-t border-slate-100">
@@ -472,6 +521,19 @@ export default function AccountsPage() {
 
               <button
                 type="button"
+                onClick={() => setIsBrokerSyncOpen(true)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                  selectedAccount.connection?.syncStatus === 'connected'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <Zap size={14} className={selectedAccount.connection?.syncStatus === 'connected' ? 'text-emerald-600' : 'text-blue-600'} />
+                <span>{selectedAccount.connection?.syncStatus === 'connected' ? `${selectedAccount.connection.platform} Sync` : 'Connect MT4/MT5'}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsEditAccountOpen(true)}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-colors"
               >
@@ -479,6 +541,130 @@ export default function AccountsPage() {
                 <span>Manage / Edit</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ── MT4 / MT5 Investor Sync Ribbon ── */}
+        <div
+          className="rounded-2xl p-4 bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3"
+          style={{
+            boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
+          }}
+        >
+          {selectedAccount.connection ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-extrabold text-xs">
+                {selectedAccount.connection.platform}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-xs text-slate-900">
+                    {selectedAccount.connection.platform} Investor Bridge
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isBrokerSyncing
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : selectedAccount.connection.syncStatus === 'connected'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isBrokerSyncing
+                          ? 'bg-blue-500 animate-ping'
+                          : selectedAccount.connection.syncStatus === 'connected'
+                          ? 'bg-emerald-500'
+                          : 'bg-red-500'
+                      }`}
+                    />
+                    {isBrokerSyncing
+                      ? 'Syncing trades...'
+                      : selectedAccount.connection.syncStatus === 'connected'
+                      ? 'Live Sync Connected'
+                      : 'Connection Failed'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {selectedAccount.connection.server} • #{selectedAccount.connection.login} • Read-only
+                  {selectedAccount.connection.lastSyncedAt
+                    ? ` • Last synced: ${new Date(selectedAccount.connection.lastSyncedAt).toLocaleTimeString()}`
+                    : ''}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
+                <Zap size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Automated MT4 / MT5 Sync</h4>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Connect your account via read-only Investor Password to sync positions and trades automatically.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {syncFeedback && (
+              <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                {syncFeedback}
+              </span>
+            )}
+
+            {selectedAccount.connection ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleToggleAutoSync}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                    selectedAccount.isAutoSyncEnabled
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title="Toggle automated background synchronization"
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      selectedAccount.isAutoSyncEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                    }`}
+                  />
+                  <span>
+                    Auto-Sync: {selectedAccount.isAutoSyncEnabled ? `ON (${selectedAccount.connection.autoSyncIntervalSec || 30}s)` : 'OFF'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleManualSync}
+                  disabled={isBrokerSyncing}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
+                >
+                  <RefreshCw size={13} className={isBrokerSyncing ? 'animate-spin' : ''} />
+                  <span>Sync Now</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsBrokerSyncOpen(true)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 transition-all"
+                >
+                  Configure
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsBrokerSyncOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
+              >
+                <Zap size={14} />
+                <span>Connect MT4 / MT5</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -684,6 +870,13 @@ export default function AccountsPage() {
         account={selectedAccount}
         isOpen={isQuickTradeOpen}
         onClose={() => setIsQuickTradeOpen(false)}
+      />
+
+      <BrokerSyncModal
+        account={selectedAccount}
+        isOpen={isBrokerSyncOpen}
+        onClose={() => setIsBrokerSyncOpen(false)}
+        onUpdateAccount={updateAccount}
       />
     </div>
   );
