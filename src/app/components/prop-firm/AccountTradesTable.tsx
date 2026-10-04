@@ -293,4 +293,3 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
     </div>
   );
 };
-};
