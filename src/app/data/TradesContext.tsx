@@ -89,6 +89,23 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isGuest]);
 
+  // ── Listen for broker force-sync updates ──────────────────────────────────
+  useEffect(() => {
+    const handleBrokerUpdate = () => {
+      try {
+        const raw = localStorage.getItem('hustle_trading_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTrades(parsed);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('hustle_accounts_updated', handleBrokerUpdate);
+    return () => window.removeEventListener('hustle_accounts_updated', handleBrokerUpdate);
+  }, []);
+
   // ── Auto-sync 4 s after every trade change (authenticated only) ───────────
   useEffect(() => {
     if (!isAuthenticated || !accessToken || tradesLoading) return;

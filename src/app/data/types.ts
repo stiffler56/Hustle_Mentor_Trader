@@ -72,11 +72,14 @@ export interface Trade {
   brokerTradeId?: string;
   brokerAccountId?: string;
   brokerType?: string;
+  symbol?: string;
   entryPrice?: number;
   exitPrice?: number;
   quantity?: number;
+  lots?: number;
   commission?: number;
   swap?: number;
+  pnlPercentage?: number;
 
   // Elevation features: stored in the same trade object so cloud sync and GitHub sync preserve the data.
   psychologicalMetrics?: PsychologicalMetrics;

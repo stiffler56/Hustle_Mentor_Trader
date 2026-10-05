@@ -1,7 +1,22 @@
-import type { Trade } from '../data/types';
-import type { InvestorConnectionConfig } from '../data/accountTypes';
+/**
+ * Broker Sync & Trade Normalization Pipeline
+ * Uses direct MetaApiClient REST calls without heavy SDKs
+ */
 
-function determineTradeSession(d: Date): 'New York' | 'London' | 'Tokyo' | 'Sydney' {
+import type { Trade, Session, OrderType } from '../data/types';
+import type { Account, InvestorConnectionConfig } from '../data/accountTypes';
+import {
+  MetaApiClient,
+  type MetaApiAccountInformation,
+  type MetaApiDeal,
+  type MetaApiPosition,
+  type MetaApiHealthStatus,
+} from '../services/metaApiClient';
+
+/**
+ * Determine trade session based on UTC execution hour
+ */
+export function determineTradeSession(d: Date): Session {
   const h = d.getUTCHours();
   if (h >= 13 && h < 21) return 'New York';
   if (h >= 7 && h < 15) return 'London';
@@ -9,55 +24,273 @@ function determineTradeSession(d: Date): 'New York' | 'London' | 'Tokyo' | 'Sydn
   return 'Sydney';
 }
 
-const PROVISIONING_ENDPOINTS = [
-  '/api-metaapi-provisioning',
-  'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai',
-];
+/**
+ * Normalize raw MetaApi deals into application Trade objects
+ */
+export function normalizeMetaApiDeals(
+  deals: MetaApiDeal[],
+  accountId: string = 'acc-default',
+  baseBalance: number = 50000
+): Trade[] {
+  if (!Array.isArray(deals) || deals.length === 0) return [];
 
-function getClientEndpoints(region: string = 'london') {
-  return [
-    '/api-metaapi-client',
-    `https://mt-client-api-v1.${region}.agiliumtrade.ai`,
-    'https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai',
-  ];
-}
+  // Group deals by positionId or orderId
+  const posMap = new Map<string, MetaApiDeal[]>();
 
-async function safeFetchWithFallback(
-  endpoints: string[],
-  path: string,
-  options: RequestInit
-): Promise<{ ok: boolean; status: number; data: any; raw: string }> {
-  let lastError: any = null;
+  for (const d of deals) {
+    if (d.type === 'DEAL_TYPE_BALANCE') continue; // Skip deposit/withdrawal entries
+    const key = d.positionId || d.orderId || d.id;
+    if (!posMap.has(key)) posMap.set(key, []);
+    posMap.get(key)!.push(d);
+  }
 
-  for (const base of endpoints) {
-    try {
-      const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
-      const res = await fetch(url, options);
-      const text = await res.text();
-      let json: any = null;
-      try {
-        json = JSON.parse(text);
-      } catch {}
+  const normalizedTrades: Trade[] = [];
 
-      if (res.ok) {
-        return { ok: true, status: res.status, data: json ?? text, raw: text };
+  for (const [key, group] of posMap.entries()) {
+    const inDeals = group.filter((d) => d.entryType === 'DEAL_ENTRY_IN');
+    const outDeals = group.filter(
+      (d) => d.entryType === 'DEAL_ENTRY_OUT' || d.entryType === 'DEAL_ENTRY_INOUT' || d.entryType === 'DEAL_ENTRY_OUT_BY'
+    );
+
+    // If there is an OUT deal, this represents a closed execution trade
+    if (outDeals.length > 0) {
+      for (const outDeal of outDeals) {
+        const inDeal = inDeals[0];
+        const isSell = inDeal
+          ? String(inDeal.type || '').toUpperCase().includes('SELL')
+          : String(outDeal.type || '').toUpperCase().includes('BUY');
+
+        const orderType: OrderType = isSell ? 'Sell' : 'Buy';
+        const commission = group.reduce((acc, d) => acc + (d.commission || 0), 0);
+        const swap = group.reduce((acc, d) => acc + (d.swap || 0), 0);
+        const totalPnl = Number(((outDeal.profit || 0) + commission + swap).toFixed(2));
+        const pnlPct = Number(((totalPnl / baseBalance) * 100).toFixed(2));
+
+        const outDate = new Date(outDeal.time || Date.now());
+        const inDate = inDeal ? new Date(inDeal.time) : outDate;
+
+        const symbol = (outDeal.symbol || inDeal?.symbol || 'XAUUSD').replace('/', '').toUpperCase();
+        const dateStr = !isNaN(outDate.getTime())
+          ? outDate.toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
+
+        normalizedTrades.push({
+          id: `mt-${outDeal.id || key}`,
+          brokerTradeId: String(outDeal.id || key),
+          accountId,
+          date: dateStr,
+          pair: symbol,
+          symbol,
+          trend: orderType === 'Buy' ? 'Bullish' : 'Bearish',
+          orderType,
+          session: determineTradeSession(inDate),
+          strategy: 'Order Block',
+          bais: 'MetaTrader 5 Sync',
+          mentalFocus: 25,
+          confluences: 3,
+          buyLowSellHigh: 20,
+          bias: 20,
+          risk: 1.0,
+          rrRatio: 2.0,
+          score: 85,
+          decision: 'TAKE',
+          result: totalPnl > 0 ? 'WIN' : totalPnl < 0 ? 'LOSS' : 'BE',
+          pnl: totalPnl,
+          pnlPercentage: pnlPct,
+          status: 'CLOSED',
+          createdAt: inDate.toISOString(),
+          closedAt: outDate.toISOString(),
+          entryPrice: inDeal?.price || undefined,
+          exitPrice: outDeal.price || undefined,
+          quantity: outDeal.volume || inDeal?.volume || 1.0,
+          lots: outDeal.volume || inDeal?.volume || 1.0,
+          commission,
+          swap,
+          notes: `Synced from MT5 Ticket #${outDeal.id || key}`,
+        });
       }
-
-      // If not ok but valid response received from endpoint
-      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
-        // Only return if not a proxy 404
-        if (!(base.startsWith('/') && res.status === 404)) {
-          return { ok: false, status: res.status, data: json ?? text, raw: text };
-        }
-      }
-    } catch (err: any) {
-      lastError = err;
     }
   }
 
-  throw lastError || new Error('Network connection failed. Verify internet connection.');
+  return normalizedTrades;
 }
 
+/**
+ * Normalize active live MetaApi positions into open Trade objects
+ */
+export function normalizeMetaApiPositions(
+  positions: MetaApiPosition[],
+  accountId: string = 'acc-default'
+): Trade[] {
+  if (!Array.isArray(positions) || positions.length === 0) return [];
+
+  return positions.map((p) => {
+    const d = new Date(p.time || Date.now());
+    const isSell = String(p.type || '').toUpperCase().includes('SELL');
+    const orderType: OrderType = isSell ? 'Sell' : 'Buy';
+    const profit = Number((p.profit || 0).toFixed(2));
+    const symbol = (p.symbol || 'XAUUSD').replace('/', '').toUpperCase();
+    const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+    return {
+      id: `mt-${p.id}`,
+      brokerTradeId: String(p.id),
+      accountId,
+      date: dateStr,
+      pair: symbol,
+      symbol,
+      trend: orderType === 'Buy' ? 'Bullish' : 'Bearish',
+      orderType,
+      session: determineTradeSession(d),
+      strategy: 'Order Block',
+      bais: 'MetaTrader 5 Live Position',
+      mentalFocus: 25,
+      confluences: 3,
+      buyLowSellHigh: 20,
+      bias: 20,
+      risk: 1.0,
+      rrRatio: 2.0,
+      score: 85,
+      decision: 'TAKE',
+      pnl: profit,
+      status: 'OPEN',
+      createdAt: d.toISOString(),
+      entryPrice: p.openPrice,
+      exitPrice: p.currentPrice,
+      quantity: p.volume || 1.0,
+      lots: p.volume || 1.0,
+      swap: p.swap || 0,
+      notes: `Live open trade ticket #${p.id}`,
+    };
+  });
+}
+
+export interface ForceSyncResult {
+  success: boolean;
+  message: string;
+  accountInfo?: MetaApiAccountInformation;
+  health?: MetaApiHealthStatus;
+  balance?: number;
+  equity?: number;
+  openPositionsCount: number;
+  closedTradesCount: number;
+  trades: Trade[];
+}
+
+/**
+ * 1-Click Test Connection & Force Sync Function
+ * Validates token & account ID, fetches latest account state, positions, and history,
+ * normalizes trades, updates localStorage and active accounts.
+ */
+export async function testConnectionAndForceSync(
+  customToken?: string,
+  customAccountId?: string
+): Promise<ForceSyncResult> {
+  const { token: defaultToken, accountId: defaultAccountId } = MetaApiClient.getCredentials();
+  const token = (customToken || defaultToken).trim();
+  const accountId = (customAccountId || defaultAccountId).trim();
+
+  if (!token) {
+    throw new Error('MetaApi access token is missing. Please enter your token.');
+  }
+  if (!accountId) {
+    throw new Error('MetaTrader account ID is missing.');
+  }
+
+  // Save active credentials
+  MetaApiClient.saveCredentials(token, accountId);
+
+  // 1. Health check & account provisioning check
+  const health = await MetaApiClient.getConnectionHealth(accountId, token);
+
+  // 2. Fetch account information
+  const accountInfo = await MetaApiClient.getAccountInformation(accountId, token, health.region);
+
+  // 3. Fetch positions and deals
+  const [positions, deals] = await Promise.all([
+    MetaApiClient.getPositions(accountId, token, health.region).catch(() => []),
+    MetaApiClient.getHistoryDeals(accountId, '2020-01-01T00:00:00.000Z', new Date().toISOString(), token, health.region).catch(() => []),
+  ]);
+
+  const baseBalance = accountInfo.balance || 50000;
+  const closedTrades = normalizeMetaApiDeals(deals, accountId, baseBalance);
+  const openTrades = normalizeMetaApiPositions(positions, accountId);
+  const combinedTrades = [...openTrades, ...closedTrades];
+
+  // 4. Update stored accounts in localStorage (hustle_accounts_v2)
+  try {
+    const raw = localStorage.getItem('hustle_accounts_v2');
+    if (raw) {
+      const parsed: Account[] = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const updated = parsed.map((acc) => {
+          // Match by connection externalAccountId, login, or first account
+          const matches =
+            acc.connection?.externalAccountId === accountId ||
+            String(acc.connection?.login) === String(accountInfo.login) ||
+            String(acc.accountNumber).replace('#', '') === String(accountInfo.login);
+
+          if (matches) {
+            return {
+              ...acc,
+              currentBalance: accountInfo.balance,
+              currentEquity: accountInfo.equity,
+              currency: accountInfo.currency || acc.currency || 'USD',
+              connection: {
+                platform: (accountInfo.platform?.toUpperCase() as 'MT4' | 'MT5') || 'MT5',
+                login: String(accountInfo.login),
+                investorPassword: acc.connection?.investorPassword || '',
+                server: accountInfo.server || acc.serverType || 'FundingPips-SIM1',
+                syncStatus: 'connected' as const,
+                lastSyncedAt: new Date().toISOString(),
+                autoSyncIntervalSec: acc.connection?.autoSyncIntervalSec || 30,
+                externalAccountId: accountId,
+                metaApiToken: token,
+                region: health.region || 'london',
+              },
+            };
+          }
+          return acc;
+        });
+
+        localStorage.setItem('hustle_accounts_v2', JSON.stringify(updated));
+      }
+    }
+  } catch {}
+
+  // 5. Update stored trades in localStorage (hustle_trading_v1)
+  try {
+    const existingRaw = localStorage.getItem('hustle_trading_v1');
+    const existingTrades: Trade[] = existingRaw ? JSON.parse(existingRaw) : [];
+    const nonBroker = Array.isArray(existingTrades)
+      ? existingTrades.filter((t) => !t.brokerTradeId && !t.id.startsWith('mt-'))
+      : [];
+
+    const merged = [...combinedTrades, ...nonBroker];
+    localStorage.setItem('hustle_trading_v1', JSON.stringify(merged));
+  } catch {}
+
+  // 6. Dispatch custom events so all mounted React pages reflect changes immediately
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('hustle_accounts_updated', { detail: { accountId } }));
+  }
+
+  return {
+    success: true,
+    message: `Connected to ${accountInfo.server} (#${accountInfo.login}). Synced ${closedTrades.length} closed deals and ${openTrades.length} open positions.`,
+    accountInfo,
+    health,
+    balance: accountInfo.balance,
+    equity: accountInfo.equity,
+    openPositionsCount: openTrades.length,
+    closedTradesCount: closedTrades.length,
+    trades: combinedTrades,
+  };
+}
+
+/**
+ * Backward compatibility connectors for existing modals and contexts
+ */
 export async function requestBrokerConnect(params: {
   platform: 'MT4' | 'MT5';
   login: string;
@@ -67,92 +300,14 @@ export async function requestBrokerConnect(params: {
   accessToken?: string;
   metaApiToken?: string;
 }): Promise<{ ok: boolean; externalAccountId?: string; balance?: number; equity?: number; isLive: boolean; region?: string }> {
-  const token =
-    params.metaApiToken ||
-    localStorage.getItem('metaapi_token') ||
-    ((import.meta as any).env?.VITE_METAAPI_TOKEN as string) ||
-    '';
-
-  if (!token) {
-    throw new Error('MetaApi access token required for live sync.');
-  }
-
-  localStorage.setItem('metaapi_token', token);
-  const headers = {
-    'auth-token': token,
-    'Content-Type': 'application/json',
-  };
-
-  // 1. Check existing accounts in MetaApi
-  const listResp = await safeFetchWithFallback(PROVISIONING_ENDPOINTS, '/users/current/accounts', { headers });
-  if (!listResp.ok) {
-    const msg = listResp.data?.message || `MetaApi connection failed (${listResp.status}).`;
-    throw new Error(msg);
-  }
-
-  const accounts = Array.isArray(listResp.data) ? listResp.data : [];
-  let externalAccount = accounts.find((a: any) => String(a.login).trim() === String(params.login).trim());
-
-  if (!externalAccount) {
-    // 2. Provision new account on MetaApi
-    const createResp = await safeFetchWithFallback(PROVISIONING_ENDPOINTS, '/users/current/accounts', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        name: `Hustle-${params.login}`,
-        type: 'cloud',
-        login: params.login.trim(),
-        server: params.server.trim(),
-        password: params.investorPassword.trim(),
-        platform: params.platform.toLowerCase(),
-        magic: 0,
-        quoteStreamingIntervalInSeconds: 2.5,
-      }),
-    });
-
-    if (!createResp.ok && createResp.status !== 202) {
-      const msg = createResp.data?.message || `Failed to register account with MetaApi bridge (${createResp.status}).`;
-      throw new Error(msg);
-    }
-
-    externalAccount = createResp.data;
-  }
-
-  const externalId = externalAccount._id || externalAccount.id;
-  const region = externalAccount.region || 'london';
-
-  // 3. Deploy if not deployed
-  if (externalAccount.state !== 'DEPLOYED') {
-    await safeFetchWithFallback(PROVISIONING_ENDPOINTS, `/users/current/accounts/${externalId}/deploy`, {
-      method: 'POST',
-      headers,
-    }).catch(() => {});
-  }
-
-  // 4. Fetch current balance & equity
-  let balance: number | undefined;
-  let equity: number | undefined;
-
-  try {
-    const clientEndpoints = getClientEndpoints(region);
-    const infoResp = await safeFetchWithFallback(
-      clientEndpoints,
-      `/users/current/accounts/${externalId}/account-information`,
-      { headers }
-    );
-    if (infoResp.ok && infoResp.data) {
-      balance = infoResp.data.balance;
-      equity = infoResp.data.equity;
-    }
-  } catch {}
-
+  const syncRes = await testConnectionAndForceSync(params.metaApiToken);
   return {
     ok: true,
-    externalAccountId: externalId,
-    balance,
-    equity,
+    externalAccountId: syncRes.health?.name || params.accountId,
+    balance: syncRes.balance,
+    equity: syncRes.equity,
     isLive: true,
-    region,
+    region: syncRes.health?.region || 'london',
   };
 }
 
@@ -161,160 +316,15 @@ export async function requestBrokerSync(params: {
   connection: InvestorConnectionConfig;
   accessToken?: string;
 }): Promise<{ trades: Trade[]; balance?: number; equity?: number }> {
-  const token =
-    params.connection.metaApiToken ||
-    localStorage.getItem('metaapi_token') ||
-    ((import.meta as any).env?.VITE_METAAPI_TOKEN as string) ||
-    '';
-
-  if (!token) {
-    throw new Error('MetaApi token is required to sync real Funding Pips data.');
-  }
-
-  const externalId = params.connection.externalAccountId;
-  if (!externalId) {
-    throw new Error('Broker account bridge ID missing. Reconnect in settings.');
-  }
-
-  const region = (params.connection as any).region || 'london';
-  const clientEndpoints = getClientEndpoints(region);
-  const headers = { 'auth-token': token };
-
-  // Fetch account info
-  const infoResp = await safeFetchWithFallback(
-    clientEndpoints,
-    `/users/current/accounts/${externalId}/account-information`,
-    { headers }
+  const syncRes = await testConnectionAndForceSync(
+    params.connection.metaApiToken,
+    params.connection.externalAccountId
   );
 
-  let balance: number | undefined;
-  let equity: number | undefined;
-
-  if (infoResp.ok && infoResp.data) {
-    balance = infoResp.data.balance;
-    equity = infoResp.data.equity;
-  }
-
-  // Fetch open positions
-  const posResp = await safeFetchWithFallback(
-    clientEndpoints,
-    `/users/current/accounts/${externalId}/positions`,
-    { headers }
-  ).catch(() => ({ ok: false, data: [] }));
-
-  // Fetch closed history deals
-  const dealsResp = await safeFetchWithFallback(
-    clientEndpoints,
-    `/users/current/accounts/${externalId}/history-deals/time/2020-01-01T00:00:00.000Z/2027-01-01T00:00:00.000Z`,
-    { headers }
-  ).catch(() => ({ ok: false, data: [] }));
-
-  const rawPositions = Array.isArray(posResp.data) ? posResp.data : [];
-  const rawDeals = Array.isArray(dealsResp.data) ? dealsResp.data : [];
-
-  // Group deals by positionId to reconstruct accurate entries, exits, commissions, and PnL
-  const posMap = new Map<string, any[]>();
-  for (const d of rawDeals) {
-    if (!d.positionId) continue;
-    if (!posMap.has(d.positionId)) posMap.set(d.positionId, []);
-    posMap.get(d.positionId)!.push(d);
-  }
-
-  const closedTrades: Trade[] = [];
-
-  for (const [posId, deals] of posMap.entries()) {
-    const inDeal = deals.find(d => d.entryType === 'DEAL_ENTRY_IN');
-    const outDeal = deals.find(d => d.entryType === 'DEAL_ENTRY_OUT');
-
-    if (outDeal) {
-      const origType: 'Buy' | 'Sell' = inDeal
-        ? inDeal.type?.includes('SELL')
-          ? 'Sell'
-          : 'Buy'
-        : outDeal.type?.includes('BUY')
-        ? 'Sell'
-        : 'Buy';
-
-      const comm = deals.reduce((acc, d) => acc + (d.commission || 0), 0);
-      const swap = deals.reduce((acc, d) => acc + (d.swap || 0), 0);
-      const totalPnl = Number(((outDeal.profit || 0) + comm + swap).toFixed(2));
-      const outDate = new Date(outDeal.time || Date.now());
-      const inDate = inDeal ? new Date(inDeal.time) : outDate;
-      const result = totalPnl > 0 ? ('WIN' as const) : totalPnl < 0 ? ('LOSS' as const) : ('BE' as const);
-
-      closedTrades.push({
-        id: `mt-${outDeal.id || posId}`,
-        brokerTradeId: String(outDeal.id || posId),
-        accountId: params.accountId,
-        date: outDate.toISOString().split('T')[0],
-        pair: (outDeal.symbol || 'FOREX').replace('/', '').toUpperCase(),
-        trend: origType === 'Buy' ? ('Bullish' as const) : ('Bearish' as const),
-        orderType: origType,
-        session: determineTradeSession(inDate),
-        strategy: 'Funding Pips Live',
-        bais: 'Funding Pips Live',
-        mentalFocus: 8,
-        confluences: 3,
-        buyLowSellHigh: 8,
-        bias: 8,
-        risk: 1.0,
-        rrRatio: 2.0,
-        score: 80,
-        decision: 'TAKE' as const,
-        result,
-        pnl: totalPnl,
-        status: 'CLOSED' as const,
-        createdAt: inDate.toISOString(),
-        closedAt: outDate.toISOString(),
-        entryPrice: inDeal?.price || undefined,
-        exitPrice: outDeal.price || undefined,
-        quantity: outDeal.volume || 1.0,
-        commission: comm,
-        swap,
-        notes: `Real MT5 ticket #${outDeal.id} on ${params.connection.server}`,
-      });
-    }
-  }
-
-  // Map open positions
-  const openTrades: Trade[] = rawPositions.map((p: any) => {
-    const d = new Date(p.time || Date.now());
-    const isSell = String(p.type || '').toUpperCase().includes('SELL');
-    const profit = Number((p.profit || 0).toFixed(2));
-
-    return {
-      id: `mt-${p.id}`,
-      brokerTradeId: String(p.id),
-      accountId: params.accountId,
-      date: d.toISOString().split('T')[0],
-      pair: (p.symbol || 'FOREX').replace('/', '').toUpperCase(),
-      trend: isSell ? ('Bearish' as const) : ('Bullish' as const),
-      orderType: isSell ? ('Sell' as const) : ('Buy' as const),
-      session: determineTradeSession(d),
-      strategy: 'Live Open Position',
-      bais: 'Funding Pips Live',
-      mentalFocus: 8,
-      confluences: 3,
-      buyLowSellHigh: 8,
-      bias: 8,
-      risk: 1.0,
-      rrRatio: 2.0,
-      score: 80,
-      decision: 'TAKE' as const,
-      pnl: profit,
-      status: 'OPEN' as const,
-      createdAt: d.toISOString(),
-      entryPrice: p.openPrice,
-      exitPrice: p.currentPrice,
-      quantity: p.volume || 1.0,
-      notes: `Live open trade #${p.id} on ${params.connection.server}`,
-    };
-  });
-
   return {
-    trades: [...openTrades, ...closedTrades],
-    balance,
-    equity,
+    trades: syncRes.trades,
+    balance: syncRes.balance,
+    equity: syncRes.equity,
   };
 }
 
@@ -322,6 +332,7 @@ export async function requestBrokerDisconnect(params: {
   accountId: string;
   login: string;
   accessToken?: string;
-}) {
-  return Promise.resolve();
+}): Promise<void> {
+  localStorage.removeItem('metaapi_token');
+  localStorage.removeItem('metaapi_account_id');
 }
