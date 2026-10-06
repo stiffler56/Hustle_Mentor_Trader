@@ -24,8 +24,48 @@ export interface MentorReport {
 
 export interface MentorAnswer {
   answer: string;
-  source: 'groq' | 'local-fallback';
+  source: 'ai' | 'local-fallback';
   error?: string;
+}
+
+export interface TradingPattern {
+  title: string;
+  explanation: string;
+  evidence: string;
+  confidence: number;
+  recommendation: string;
+}
+
+export interface PersonalTradingProfile {
+  totalTrades: number;
+  closedTrades: number;
+  wins: number;
+  losses: number;
+  breakEven: number;
+  winRate: number;
+  totalPnl: number;
+  averageWin: number;
+  averageLoss: number;
+  profitFactor: number;
+  bestSession: string | null;
+  worstSession: string | null;
+  bestStrategy: string | null;
+  worstStrategy: string | null;
+  bestSymbol: string | null;
+  worstSymbol: string | null;
+  performanceBySession: Array<{ key: string; trades: number; winRate: number; pnl: number }>;
+  performanceByStrategy: Array<{ key: string; trades: number; winRate: number; pnl: number }>;
+  performanceBySymbol: Array<{ key: string; trades: number; winRate: number; pnl: number }>;
+  performanceByDayOfWeek: Array<{ key: string; trades: number; winRate: number; pnl: number }>;
+  riskViolations: number;
+  lowFocusTrades: number;
+  revengeTrades: number;
+  chasingTrades: number;
+  overconfidentTrades: number;
+  repeatedMistakes: string[];
+  winningPatterns: TradingPattern[];
+  losingPatterns: TradingPattern[];
+  recentTrades: Array<any>;
 }
 
 const closedTrades = (trades: Trade[]) => trades.filter((trade) => trade.status === 'CLOSED' && trade.result);
@@ -43,6 +83,7 @@ function avg(values: number[]): number {
 function groupBy<T extends string>(trades: Trade[], getter: (trade: Trade) => T): Record<T, Trade[]> {
   return trades.reduce((groups, trade) => {
     const key = getter(trade);
+    if (!key) return groups;
     groups[key] = groups[key] || [];
     groups[key].push(trade);
     return groups;
@@ -77,29 +118,209 @@ function findWorstGroup<T extends string>(groups: Record<T, Trade[]>): { key: T;
     .sort((a, b) => a.winRate - b.winRate || a.pnl - b.pnl)[0];
 }
 
-export function generateMentorReport(trades: Trade[]): MentorReport {
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function getDayOfWeek(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return DAY_NAMES[d.getUTCDay()];
+    }
+  } catch {}
+  return 'Unknown';
+}
+
+function summarizeGroup<T extends string>(trades: Trade[], getter: (trade: Trade) => T) {
+  return Object.entries(groupBy(trades, getter)).map(([key, items]) => {
+    const groupTrades = items as Trade[];
+    return {
+      key,
+      trades: groupTrades.length,
+      winRate: pct(winningTrades(groupTrades).length, groupTrades.length),
+      pnl: Number(groupTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)),
+      averageRisk: Number(avg(groupTrades.map((trade) => trade.risk || 0)).toFixed(2)),
+      averageScore: Math.round(avg(groupTrades.map((trade) => trade.score || 0))),
+    };
+  });
+}
+
+/**
+ * Builds a structured personal trading profile and evidence sets from the user's journal
+ */
+export function buildPersonalTradingProfile(trades: Trade[]): PersonalTradingProfile {
   const closed = closedTrades(trades);
   const wins = winningTrades(closed);
   const losses = losingTrades(closed);
-  const totalPnL = closed.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+  const breakEven = closed.filter((t) => t.result === 'BE');
+  const totalPnl = Number(closed.reduce((sum, t) => sum + (t.pnl || 0), 0).toFixed(2));
   const winRate = pct(wins.length, closed.length);
-  const avgWin = avg(wins.map((trade) => trade.pnl || 0));
-  const avgLoss = Math.abs(avg(losses.map((trade) => trade.pnl || 0)));
-  const profitFactor = avgLoss > 0 && losses.length > 0
-    ? (wins.reduce((sum, trade) => sum + Math.max(0, trade.pnl || 0), 0) / Math.abs(losses.reduce((sum, trade) => sum + Math.min(0, trade.pnl || 0), 0)))
-    : wins.length > 0 ? 999 : 0;
+  const averageWin = Number(avg(wins.map((t) => t.pnl || 0)).toFixed(2));
+  const averageLoss = Number(Math.abs(avg(losses.map((t) => t.pnl || 0))).toFixed(2));
+  const grossLossTotal = Math.abs(losses.reduce((sum, t) => sum + Math.min(0, t.pnl || 0), 0));
+  const grossWinTotal = wins.reduce((sum, t) => sum + Math.max(0, t.pnl || 0), 0);
+  const profitFactor = grossLossTotal > 0 ? Number((grossWinTotal / grossLossTotal).toFixed(2)) : wins.length > 0 ? 999 : 0;
 
-  const sessionBest = findBestGroup(groupBy(closed, (trade) => trade.session));
-  const sessionWorst = findWorstGroup(groupBy(closed, (trade) => trade.session));
-  const strategyBest = findBestGroup(groupBy(closed, (trade) => trade.strategy));
-  const strategyWorst = findWorstGroup(groupBy(closed, (trade) => trade.strategy));
-  const highRiskTrades = closed.filter((trade) => trade.risk > 2);
-  const lowFocusTrades = closed.filter((trade) => trade.mentalFocus < 10);
-  const psychologyTrades = closed.filter((trade) => trade.psychologicalMetrics);
-  const revengeTrades = closed.filter((trade) => trade.psychologicalMetrics?.wasRevengeTrading);
-  const chasingTrades = closed.filter((trade) => trade.psychologicalMetrics?.wasChasing);
-  const overconfidentTrades = closed.filter((trade) => trade.psychologicalMetrics?.wasOverconfident);
+  const sessionGroups = groupBy(closed, (t) => t.session);
+  const strategyGroups = groupBy(closed, (t) => t.strategy);
+  const symbolGroups = groupBy(closed, (t) => t.pair || t.symbol || 'OTHER');
+  const dayGroups = groupBy(closed, (t) => getDayOfWeek(t.date));
 
+  const bestSessionObj = findBestGroup(sessionGroups);
+  const worstSessionObj = findWorstGroup(sessionGroups);
+  const bestStrategyObj = findBestGroup(strategyGroups);
+  const worstStrategyObj = findWorstGroup(strategyGroups);
+  const bestSymbolObj = findBestGroup(symbolGroups);
+  const worstSymbolObj = findWorstGroup(symbolGroups);
+
+  const performanceBySession = summarizeGroup(closed, (t) => t.session);
+  const performanceByStrategy = summarizeGroup(closed, (t) => t.strategy);
+  const performanceBySymbol = summarizeGroup(closed, (t) => t.pair || t.symbol || 'OTHER');
+  const performanceByDayOfWeek = summarizeGroup(closed, (t) => getDayOfWeek(t.date));
+
+  const riskViolations = closed.filter((t) => (t.risk || 0) > 2).length;
+  const lowFocusTrades = closed.filter((t) => (t.mentalFocus || 0) < 15).length;
+  const revengeTrades = closed.filter((t) => t.psychologicalMetrics?.wasRevengeTrading).length;
+  const chasingTrades = closed.filter((t) => t.psychologicalMetrics?.wasChasing).length;
+  const overconfidentTrades = closed.filter((t) => t.psychologicalMetrics?.wasOverconfident).length;
+
+  const repeatedMistakes: string[] = [];
+  if (riskViolations >= 2) repeatedMistakes.push(`${riskViolations} trades risked over 2% of capital.`);
+  if (lowFocusTrades >= 2) repeatedMistakes.push(`${lowFocusTrades} trades executed with low mental clarity (focus < 15).`);
+  if (revengeTrades >= 1) repeatedMistakes.push(`${revengeTrades} revenge trading instances recorded after losses.`);
+  if (chasingTrades >= 1) repeatedMistakes.push(`${chasingTrades} setups flagged for chasing price after missing entries.`);
+  if (worstSessionObj && worstSessionObj.count >= 3 && worstSessionObj.winRate <= 35) {
+    repeatedMistakes.push(`Consistently leaking P&L in ${worstSessionObj.key} (${worstSessionObj.winRate}% win rate).`);
+  }
+
+  // Winning patterns
+  const winningPatterns: TradingPattern[] = [];
+  if (bestStrategyObj && bestStrategyObj.count >= 2) {
+    winningPatterns.push({
+      title: `${bestStrategyObj.key} Playbook Edge`,
+      explanation: `Your highest returning setup structure is ${bestStrategyObj.key}.`,
+      evidence: `${bestStrategyObj.count} trades, ${bestStrategyObj.winRate}% win rate, $${bestStrategyObj.pnl.toFixed(2)} net P&L.`,
+      confidence: Math.min(95, bestStrategyObj.count * 15),
+      recommendation: `Require this setup archetype before allocating capital. Document its entry checklist.`,
+    });
+  }
+
+  const winAvgConf = avg(wins.map((t) => t.confluences || 0));
+  const lossAvgConf = avg(losses.map((t) => t.confluences || 0));
+  if (wins.length >= 2 && winAvgConf > lossAvgConf + 0.5) {
+    winningPatterns.push({
+      title: 'High Confluence Alignment',
+      explanation: 'Winning trades correlate with patience and multiple confluence points.',
+      evidence: `Winning trades average ${winAvgConf.toFixed(1)} confluences vs ${lossAvgConf.toFixed(1)} on losing trades.`,
+      confidence: 85,
+      recommendation: 'Do not enter any position without at least 3 verified confluences.',
+    });
+  }
+
+  if (bestSessionObj && bestSessionObj.count >= 2) {
+    winningPatterns.push({
+      title: `${bestSessionObj.key} Session Dominance`,
+      explanation: `Execution clarity is highest during ${bestSessionObj.key}.`,
+      evidence: `${bestSessionObj.count} trades, ${bestSessionObj.winRate}% win rate, $${bestSessionObj.pnl.toFixed(2)} total profit.`,
+      confidence: Math.min(90, bestSessionObj.count * 15),
+      recommendation: `Focus your daily trading routine around the ${bestSessionObj.key} market open.`,
+    });
+  }
+
+  // Losing patterns
+  const losingPatterns: TradingPattern[] = [];
+  if (worstSessionObj && worstSessionObj.count >= 2 && worstSessionObj.winRate < 45) {
+    losingPatterns.push({
+      title: `${worstSessionObj.key} Session Drain`,
+      explanation: `Losses are heavily concentrated during ${worstSessionObj.key}.`,
+      evidence: `${worstSessionObj.count} trades, ${worstSessionObj.winRate}% win rate, $${worstSessionObj.pnl.toFixed(2)} total P&L.`,
+      confidence: Math.min(90, worstSessionObj.count * 18),
+      recommendation: `Avoid ${worstSessionObj.key} for your next 10 trades or cut position size by half.`,
+    });
+  }
+
+  if (riskViolations > 0) {
+    losingPatterns.push({
+      title: 'Position Sizing Overshoot',
+      explanation: 'Trades exceeding 2% risk create outsized drawdown swings.',
+      evidence: `${riskViolations} trades risked over 2% of capital.`,
+      confidence: 90,
+      recommendation: 'Cap risk strictly at 1.0% per trade regardless of setup excitement.',
+    });
+  }
+
+  if (revengeTrades > 0 || chasingTrades > 0) {
+    losingPatterns.push({
+      title: 'Emotional Reactivity',
+      explanation: 'Entering trades quickly after a loss or chasing breakouts leads to poor entries.',
+      evidence: `${revengeTrades} revenge flags and ${chasingTrades} chasing flags logged.`,
+      confidence: 92,
+      recommendation: 'Enforce a mandatory 30-minute terminal cooldown following any closed loss.',
+    });
+  }
+
+  // Sanitize and limit recent trades to 30, truncating text and stripping screenshot base64
+  const recentTrades = closed.slice(0, 30).map((t) => ({
+    id: t.id,
+    date: t.date,
+    pair: (t.pair || t.symbol || 'XAUUSD').replace('/', '').toUpperCase(),
+    session: t.session,
+    strategy: t.strategy,
+    orderType: t.orderType,
+    score: t.score,
+    decision: t.decision,
+    risk: t.risk,
+    rrRatio: t.rrRatio,
+    confluences: t.confluences,
+    mentalFocus: t.mentalFocus,
+    result: t.result,
+    pnl: t.pnl,
+    notes: t.notes ? t.notes.slice(0, 150) : undefined,
+    psychology: t.psychologicalMetrics ? {
+      preTradeEmotionalState: t.psychologicalMetrics.preTradeEmotionalState?.slice(0, 60),
+      postTradeEmotionalState: t.psychologicalMetrics.postTradeEmotionalState?.slice(0, 60),
+      wasRevengeTrading: t.psychologicalMetrics.wasRevengeTrading,
+      wasChasing: t.psychologicalMetrics.wasChasing,
+      wasOverconfident: t.psychologicalMetrics.wasOverconfident,
+      lessonsLearned: t.psychologicalMetrics.lessonsLearned?.slice(0, 150),
+    } : null,
+  }));
+
+  return {
+    totalTrades: trades.length,
+    closedTrades: closed.length,
+    wins: wins.length,
+    losses: losses.length,
+    breakEven: breakEven.length,
+    winRate,
+    totalPnl,
+    averageWin,
+    averageLoss,
+    profitFactor,
+    bestSession: bestSessionObj?.key || null,
+    worstSession: worstSessionObj?.key || null,
+    bestStrategy: bestStrategyObj?.key || null,
+    worstStrategy: worstStrategyObj?.key || null,
+    bestSymbol: bestSymbolObj?.key || null,
+    worstSymbol: worstSymbolObj?.key || null,
+    performanceBySession,
+    performanceByStrategy,
+    performanceBySymbol,
+    performanceByDayOfWeek,
+    riskViolations,
+    lowFocusTrades,
+    revengeTrades,
+    chasingTrades,
+    overconfidentTrades,
+    repeatedMistakes,
+    winningPatterns,
+    losingPatterns,
+    recentTrades,
+  };
+}
+
+export function generateMentorReport(trades: Trade[]): MentorReport {
+  const profile = buildPersonalTradingProfile(trades);
+  const closed = closedTrades(trades);
   const insights: MentorInsight[] = [];
 
   if (closed.length === 0) {
@@ -113,125 +334,64 @@ export function generateMentorReport(trades: Trade[]): MentorReport {
   } else {
     insights.push({
       title: 'Performance baseline',
-      description: `Your current closed-trade win rate is ${winRate}% with total P&L of $${totalPnL.toFixed(2)}.`,
-      severity: totalPnL >= 0 ? 'success' : 'warning',
-      evidence: `${closed.length} closed trades, ${wins.length} wins, ${losses.length} losses, profit factor ${profitFactor === 999 ? 'infinite' : profitFactor.toFixed(2)}.`,
-      action: winRate >= 50 ? 'Protect this edge by only taking trades that match your best setup profile.' : 'Reduce trade frequency and require stronger confluence before taking new setups.',
+      description: `Your current closed-trade win rate is ${profile.winRate}% with total P&L of $${profile.totalPnl.toFixed(2)}.`,
+      severity: profile.totalPnl >= 0 ? 'success' : 'warning',
+      evidence: `${profile.closedTrades} closed trades, ${profile.wins} wins, ${profile.losses} losses, profit factor ${profile.profitFactor === 999 ? 'infinite' : profile.profitFactor.toFixed(2)}.`,
+      action: profile.winRate >= 50 ? 'Protect this edge by only taking trades that match your best setup profile.' : 'Reduce trade frequency and require stronger confluence before taking new setups.',
     });
   }
 
-  if (sessionBest) {
+  profile.winningPatterns.forEach((p) => {
     insights.push({
-      title: `Best session: ${sessionBest.key}`,
-      description: `${sessionBest.key} is currently your strongest session with a ${sessionBest.winRate}% win rate.`,
+      title: p.title,
+      description: p.explanation,
       severity: 'success',
-      evidence: `${sessionBest.count} trades, $${sessionBest.pnl.toFixed(2)} total P&L.`,
-      action: `Prioritize ${sessionBest.key} setups until another session proves stronger with more data.`,
+      evidence: p.evidence,
+      action: p.recommendation,
     });
-  }
+  });
 
-  if (sessionWorst && sessionWorst.count >= 2) {
+  profile.losingPatterns.forEach((p) => {
     insights.push({
-      title: `Weak session: ${sessionWorst.key}`,
-      description: `${sessionWorst.key} is underperforming compared with your other sessions.`,
-      severity: 'warning',
-      evidence: `${sessionWorst.count} trades, ${sessionWorst.winRate}% win rate, $${sessionWorst.pnl.toFixed(2)} total P&L.`,
-      action: `Trade ${sessionWorst.key} only when score is 75+ and confluence is 3 or higher.`,
+      title: p.title,
+      description: p.explanation,
+      severity: p.title.includes('Sizing') || p.title.includes('Emotional') ? 'danger' : 'warning',
+      evidence: p.evidence,
+      action: p.recommendation,
     });
-  }
-
-  if (strategyBest) {
-    insights.push({
-      title: `Best strategy: ${strategyBest.key}`,
-      description: `${strategyBest.key} is currently your highest-performing strategy profile.`,
-      severity: 'success',
-      evidence: `${strategyBest.count} trades, ${strategyBest.winRate}% win rate, $${strategyBest.pnl.toFixed(2)} total P&L.`,
-      action: `Document your exact checklist for ${strategyBest.key} and repeat only the highest-quality version.`,
-    });
-  }
-
-  if (strategyWorst && strategyWorst.count >= 2 && strategyWorst.winRate < 50) {
-    insights.push({
-      title: `Strategy leak: ${strategyWorst.key}`,
-      description: `${strategyWorst.key} may be reducing consistency.`,
-      severity: 'warning',
-      evidence: `${strategyWorst.count} trades, ${strategyWorst.winRate}% win rate, $${strategyWorst.pnl.toFixed(2)} total P&L.`,
-      action: `Pause or tighten rules for ${strategyWorst.key} until you review screenshots and replay notes.`,
-    });
-  }
-
-  if (highRiskTrades.length > 0) {
-    insights.push({
-      title: 'Risk discipline warning',
-      description: `${highRiskTrades.length} closed trades risked more than 2%.`,
-      severity: 'danger',
-      evidence: `High-risk trade P&L: $${highRiskTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)}.`,
-      action: 'Cap risk at 1-1.5% until your next 20 trades prove consistent profitability.',
-    });
-  }
-
-  if (lowFocusTrades.length > 0) {
-    insights.push({
-      title: 'Mental focus leak',
-      description: `${lowFocusTrades.length} trades were taken with mental focus below 10.`,
-      severity: 'warning',
-      evidence: `Low-focus win rate: ${pct(winningTrades(lowFocusTrades).length, lowFocusTrades.length)}%.`,
-      action: 'Create a hard rule: if mental focus is under 10, no trade is allowed.',
-    });
-  }
-
-  if (psychologyTrades.length === 0 && closed.length > 0) {
-    insights.push({
-      title: 'Psychology data missing',
-      description: 'Issue #4 is now wired, but your existing trades still need psychology reviews before deeper AI patterns appear.',
-      severity: 'info',
-      evidence: `${closed.length} closed trades, 0 psychology-reviewed trades.`,
-      action: 'Open Psychology Journal and add reviews to your last 10 closed trades.',
-    });
-  }
-
-  if (revengeTrades.length || chasingTrades.length || overconfidentTrades.length) {
-    insights.push({
-      title: 'Emotional execution detected',
-      description: 'The mentor found psychology flags that can damage consistency.',
-      severity: 'danger',
-      evidence: `${revengeTrades.length} revenge trades, ${chasingTrades.length} chasing trades, ${overconfidentTrades.length} overconfidence trades.`,
-      action: 'Use a mandatory cooldown after losses and require a written checklist before re-entry.',
-    });
-  }
+  });
 
   const strengths = [
-    sessionBest ? `${sessionBest.key} session shows the strongest current edge.` : 'You are building enough trade history to detect session strengths.',
-    strategyBest ? `${strategyBest.key} is your current best strategy profile.` : 'Strategy performance will become clearer as more trades close.',
-    profitFactor >= 1 ? `Profit factor is ${profitFactor === 999 ? 'very strong' : profitFactor.toFixed(2)}.` : 'Risk analytics are now visible and ready for improvement.',
+    profile.bestSession ? `${profile.bestSession} session shows your clearest market edge.` : 'Building initial session baseline.',
+    profile.bestStrategy ? `${profile.bestStrategy} is currently your highest-performing strategy.` : 'Building strategy sample size.',
+    profile.profitFactor >= 1 ? `Profit factor is ${profile.profitFactor === 999 ? 'infinite' : profile.profitFactor.toFixed(2)}.` : 'Risk discipline is active and improving.',
   ];
 
   const weaknesses = [
-    sessionWorst && sessionWorst.count >= 2 ? `${sessionWorst.key} session needs tighter filters.` : 'Session weakness requires more sample size.',
-    strategyWorst && strategyWorst.count >= 2 ? `${strategyWorst.key} should be reviewed before taking more trades.` : 'Strategy weakness requires more sample size.',
-    psychologyTrades.length < Math.min(10, closed.length) ? 'Psychology reviews are not yet complete enough for full behavior modeling.' : 'Psychology sample size is improving.',
+    profile.worstSession ? `${profile.worstSession} session requires stricter execution filters.` : 'Session leak requires larger sample.',
+    profile.riskViolations > 0 ? `${profile.riskViolations} trades risked over 2%.` : 'Position sizing discipline intact.',
+    profile.revengeTrades > 0 ? `${profile.revengeTrades} emotional trades flagged.` : 'Emotional execution controlled.',
   ];
 
   const nextActions = [
-    'Add psychology reviews to the last 10 closed trades.',
-    sessionWorst ? `Apply stricter rules in ${sessionWorst.key} until results improve.` : 'Keep tagging every trade with session, strategy, and score.',
-    strategyBest ? `Create a written checklist for ${strategyBest.key}.` : 'Collect more closed trades before changing the strategy plan.',
-    'Review the Trade Replay page for every loss larger than your average loss.',
+    profile.worstSession ? `For your next 10 trades, avoid ${profile.worstSession} or trade half risk.` : 'Maintain strict risk management on every entry.',
+    profile.bestStrategy ? `Require at least 3 confluences for ${profile.bestStrategy}.` : 'Wait for confirmed confluences before entry.',
+    'Follow a mandatory cooldown period following any loss.',
   ];
 
-  const confidence = Math.min(95, Math.max(25, closed.length * 5 + psychologyTrades.length * 3));
+  const confidence = Math.min(95, Math.max(25, closed.length * 5));
 
   return {
     summary: closed.length
-      ? `Mentor reviewed ${closed.length} closed trades and detected ${insights.length} actionable patterns. Confidence is ${confidence}% based on available trade and psychology data.`
-      : 'Mentor is ready, but it needs closed trades before it can provide reliable guidance.',
+      ? `Hustle Mentor analyzed ${closed.length} closed trades. Found ${insights.length} actionable patterns with ${confidence}% confidence based on recorded data.`
+      : 'Hustle Mentor is ready. Log your first trades to unlock personalized pattern analysis.',
     confidence,
     insights,
     strengths,
     weaknesses,
     nextActions,
-    bestSetup: strategyBest && sessionBest ? `${strategyBest.key} during ${sessionBest.key}` : undefined,
-    worstPattern: strategyWorst && sessionWorst ? `${strategyWorst.key} during ${sessionWorst.key}` : undefined,
+    bestSetup: profile.bestStrategy && profile.bestSession ? `${profile.bestStrategy} during ${profile.bestSession}` : undefined,
+    worstPattern: profile.worstStrategy && profile.worstSession ? `${profile.worstStrategy} during ${profile.worstSession}` : undefined,
   };
 }
 
@@ -256,113 +416,203 @@ export function analyzeTradeWithMentor(trade: Trade, historicalTrades: Trade[]):
   };
 }
 
+/**
+ * Journal-aware rule-based offline fallback engine.
+ * Never invents prices or news, handles low-sample states honestly, and always ends with one practical action.
+ */
 function answerTradingQuestionLocally(question: string, trades: Trade[]): string {
   const q = question.toLowerCase();
-  const closed = closedTrades(trades);
-  const report = generateMentorReport(trades);
+  const profile = buildPersonalTradingProfile(trades);
+  const closedCount = profile.closedTrades;
 
-  // Rule-based responses for common questions
-  if (q.includes('best') && q.includes('session')) {
-    const best = findBestGroup(groupBy(closed, (trade) => trade.session));
-    return best ? `Your best session is ${best.key}: ${best.winRate}% win rate over ${best.count} trades with $${best.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your best session.';
+  // Empty state
+  if (closedCount === 0) {
+    return `I’m ready to become your trading mentor.\n\nLog your first trade and I’ll start learning your sessions, setups, risk habits, and repeated mistakes.`;
   }
 
-  if (q.includes('worst') && q.includes('session')) {
-    const worst = findWorstGroup(groupBy(closed, (trade) => trade.session));
-    return worst ? `Your weakest session is ${worst.key}: ${worst.winRate}% win rate over ${worst.count} trades with $${worst.pnl.toFixed(2)} P&L.` : 'I need more closed trades to identify your weakest session.';
+  const sampleCaveat = closedCount < 10
+    ? `\n\n*Early signal — only ${closedCount} trade${closedCount === 1 ? '' : 's'} available. Treat this as a preliminary signal, not a final conclusion.*`
+    : '';
+
+  // 1. "Why am I losing?" / Loss analysis
+  if (q.includes('why') && (q.includes('losing') || q.includes('loss') || q.includes('fail') || q.includes('leak'))) {
+    if (profile.losses === 0) {
+      return `Your journal does not currently have any recorded losing trades across ${closedCount} closed entries. Focus on preserving this discipline with controlled 1% risk.`;
+    }
+
+    const worstSessionText = profile.worstSession
+      ? `• **Session Leak**: Losses are highest in **${profile.worstSession}** (${profile.performanceBySession.find((s) => s.key === profile.worstSession)?.winRate}% win rate).`
+      : '';
+    const riskLeak = profile.riskViolations > 0
+      ? `• **Risk Violations**: ${profile.riskViolations} trades risked over 2% of capital, magnifying drawdown.`
+      : '';
+    const emotionalLeak = (profile.revengeTrades > 0 || profile.chasingTrades > 0 || profile.lowFocusTrades > 0)
+      ? `• **Psychology Leaks**: ${profile.revengeTrades} revenge flags, ${profile.chasingTrades} chasing flags, and ${profile.lowFocusTrades} low-focus executions.`
+      : '';
+
+    const worstStrat = profile.worstStrategy
+      ? `• **Underperforming Setup**: **${profile.worstStrategy}** currently has your lowest hit rate.`
+      : '';
+
+    return `Here is what your journal shows about your losing trades:\n\n` +
+      `Your current win rate is **${profile.winRate}%** (${profile.wins}W / ${profile.losses}L) with an average loss of **$${profile.averageLoss.toFixed(2)}**.\n\n` +
+      `**Key Factors Behind Losses:**\n` +
+      `${worstSessionText}\n` +
+      `${worstStrat}\n` +
+      `${riskLeak}\n` +
+      `${emotionalLeak}\n\n` +
+      `**Action:**\n` +
+      `For your next 10 trades, do not take entries unless you have at least 3 confluences, and skip ${profile.worstSession || 'unclear sessions'}.` +
+      sampleCaveat;
   }
 
-  if (q.includes('strategy')) {
-    const best = findBestGroup(groupBy(closed, (trade) => trade.strategy));
-    return best ? `Your strongest strategy is ${best.key}: ${best.winRate}% win rate over ${best.count} trades. Keep using strict rules around that setup.` : 'I need more closed trades to compare strategies.';
+  // 2. "Where's my edge?" / Edge & strengths
+  if (q.includes('edge') || q.includes('strength') || (q.includes('best') && !q.includes('session') && !q.includes('strategy') && !q.includes('symbol'))) {
+    const bestStrat = profile.bestStrategy || 'Order Block';
+    const bestSess = profile.bestSession || 'New York';
+    const bestSym = profile.bestSymbol || 'XAUUSD';
+
+    return `Your edge is currently concentrated in the following parameters:\n\n` +
+      `• **Top Strategy**: **${bestStrat}** with positive expectancy.\n` +
+      `• **Top Session**: **${bestSess}** session.\n` +
+      `• **Top Instrument**: **${bestSym}**.\n` +
+      `• **Payoff Ratio**: Average win is **$${profile.averageWin.toFixed(2)}** vs average loss of **$${profile.averageLoss.toFixed(2)}**.\n\n` +
+      `**Recommendation:**\n` +
+      `Focus purely on high-grade ${bestStrat} setups in ${bestSess}. Do not dilute your edge by overtrading other sessions.` +
+      sampleCaveat;
   }
 
-  if (q.includes('risk')) {
-    const highRisk = closed.filter((trade) => trade.risk > 2);
-    return highRisk.length ? `You have ${highRisk.length} high-risk trades above 2%. Reduce risk to 1–1.5% until consistency improves.` : 'Your risk profile looks controlled; I do not see closed trades above 2% risk.';
+  // 3. "Am I following my plan?" / Discipline check
+  if (q.includes('plan') || q.includes('disciplin') || q.includes('rule')) {
+    const disciplineScore = Math.max(0, 100 - (profile.riskViolations * 15 + profile.revengeTrades * 15 + profile.chasingTrades * 10));
+    return `**Plan Adherence Analysis:**\n\n` +
+      `• **Risk Discipline**: ${profile.riskViolations === 0 ? 'Clean (100% of trades kept within risk parameters)' : `${profile.riskViolations} trades broke the 2% maximum risk limit`}.\n` +
+      `• **Emotional Discipline**: ${profile.revengeTrades === 0 && profile.chasingTrades === 0 ? 'No emotional revenge or chasing flags logged' : `${profile.revengeTrades} revenge entries and ${profile.chasingTrades} chasing entries`}.\n` +
+      `• **Execution Score**: Estimated rule execution index is **${disciplineScore}/100**.\n\n` +
+      `**Action:**\n` +
+      `Review your trade checklist before clicking execute on your next setup.` +
+      sampleCaveat;
   }
 
-  if (q.includes('psychology') || q.includes('emotion') || q.includes('revenge')) {
-    const reviewed = closed.filter((trade) => trade.psychologicalMetrics).length;
-    return reviewed ? `I found psychology data on ${reviewed} trades. Main recommendation: ${report.nextActions[0]}` : 'No psychology-reviewed trades yet. Add entries in Psychology Journal so I can detect emotional patterns.';
+  // 4. "How do I get better?" / Improvement protocol
+  if (q.includes('better') || q.includes('improv') || q.includes('grow')) {
+    return `**Three Steps to Increase Profitability:**\n\n` +
+      `1. **Eliminate Your Primary Leak**: ${profile.worstSession ? `Stop trading ${profile.worstSession} session.` : 'Keep risk fixed at 1% per position.'}\n` +
+      `2. **Double Down on Your Edge**: Execute only ${profile.bestStrategy || 'your highest-scored'} setups.\n` +
+      `3. **Review Mistakes in Trade Replay**: Tag before/after screenshots on every loss.\n\n` +
+      `**Action:**\n` +
+      `Reduce sizing by 50% on your next 5 trades to focus purely on flawless process over profit.` +
+      sampleCaveat;
   }
 
-  // Default response using mentor report
-  return report.summary;
-}
+  // 5. Setups with highest win rate
+  if (q.includes('setup') || (q.includes('highest') && q.includes('win rate')) || (q.includes('win rate') && q.includes('strategy'))) {
+    const sortedStrats = [...profile.performanceByStrategy].sort((a, b) => b.winRate - a.winRate);
+    const list = sortedStrats.map((s) => `• **${s.key}**: ${s.winRate}% WR (${s.trades} trades, $${s.pnl} P&L)`).join('\n');
+    return `**Strategy Win Rate Comparison:**\n\n` +
+      `${list || 'No strategy data logged yet.'}\n\n` +
+      `**Action:**\n` +
+      `Prioritize ${sortedStrats[0]?.key || 'high-confluence setups'} for your upcoming watchlist.` +
+      sampleCaveat;
+  }
 
-function summarizeGroup<T extends string>(trades: Trade[], getter: (trade: Trade) => T) {
-  return Object.entries(groupBy(trades, getter)).map(([key, items]) => {
-    const groupTrades = items as Trade[];
-    return {
-      key,
-      trades: groupTrades.length,
-      winRate: pct(winningTrades(groupTrades).length, groupTrades.length),
-      pnl: Number(groupTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)),
-      averageRisk: Number(avg(groupTrades.map((trade) => trade.risk || 0)).toFixed(2)),
-      averageScore: Math.round(avg(groupTrades.map((trade) => trade.score || 0))),
-    };
-  });
+  // 6. Most profitable symbol
+  if (q.includes('symbol') || q.includes('pair') || q.includes('profitable')) {
+    const sortedSymbols = [...profile.performanceBySymbol].sort((a, b) => b.pnl - a.pnl);
+    const list = sortedSymbols.map((s) => `• **${s.key}**: $${s.pnl} P&L (${s.trades} trades, ${s.winRate}% WR)`).join('\n');
+    return `**Symbol Performance Breakdown:**\n\n` +
+      `${list || 'No symbol data logged yet.'}\n\n` +
+      `**Action:**\n` +
+      `Trade ${sortedSymbols[0]?.key || 'your top symbol'} during its primary volatility session.` +
+      sampleCaveat;
+  }
+
+  // 7. When do I trade best? / Sessions & Days
+  if (q.includes('when') || (q.includes('trade') && q.includes('best')) || q.includes('session')) {
+    const sortedSessions = [...profile.performanceBySession].sort((a, b) => b.winRate - a.winRate);
+    const list = sortedSessions.map((s) => `• **${s.key}**: ${s.winRate}% WR ($${s.pnl} P&L, ${s.trades} trades)`).join('\n');
+    return `**Session Timing Performance:**\n\n` +
+      `${list || 'No session data logged yet.'}\n\n` +
+      `**Action:**\n` +
+      `Set an alarm for the ${sortedSessions[0]?.key || 'New York'} session open and avoid trading outside active liquidity windows.` +
+      sampleCaveat;
+  }
+
+  // 8. Days to avoid
+  if (q.includes('avoid') || q.includes('days') || q.includes('day of week')) {
+    const sortedDays = [...profile.performanceByDayOfWeek].sort((a, b) => a.pnl - b.pnl);
+    const worstDay = sortedDays[0];
+    return `**Day of Week Analysis:**\n\n` +
+      sortedDays.map((d) => `• **${d.key}**: $${d.pnl} P&L (${d.winRate}% WR, ${d.trades} trades)`).join('\n') +
+      `\n\n**Action:**\n` +
+      `If trading on ${worstDay?.key || 'lower-volume days'}, halve your normal risk allowance.` +
+      sampleCaveat;
+  }
+
+  // 9. Gold / XAUUSD & Macro news handling
+  if (q.includes('xau') || q.includes('gold') || q.includes('cpi') || q.includes('fomc') || q.includes('nfp') || q.includes('news') || q.includes('fundamental')) {
+    const goldTrades = closedTrades(trades).filter((t) => (t.pair || t.symbol || '').toUpperCase().includes('XAU'));
+    const goldWins = winningTrades(goldTrades).length;
+    const goldPnl = goldTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+
+    const goldSummary = goldTrades.length > 0
+      ? `Your journal records **${goldTrades.length} closed XAUUSD trades** with a **${pct(goldWins, goldTrades.length)}% win rate** and **$${goldPnl.toFixed(2)} net P&L**.`
+      : `Your journal currently has no closed trades specifically tagged as XAUUSD / Gold.`;
+
+    return `**XAUUSD & News Execution Analysis:**\n\n` +
+      `${goldSummary}\n\n` +
+      `*Note: I can analyze how your journal performed around data you recorded, but current fundamental news and live macroeconomic data require a connected live news feed. I do not speculate on unverified future price direction.*\n\n` +
+      `**Action:**\n` +
+      `Never enter market orders in the first 5 minutes of high-impact news (CPI/NFP). Wait for post-news 15-minute market structure shift.` +
+      sampleCaveat;
+  }
+
+  // General default fallback
+  return `**Hustle Mentor Journal Review:**\n\n` +
+    `Across **${closedCount} closed trades**, you hold a **${profile.winRate}% win rate** with **$${profile.totalPnl.toFixed(2)} net P&L**.\n\n` +
+    `• **Edge**: ${profile.bestStrategy || 'High confluence setups'} during ${profile.bestSession || 'New York'}.\n` +
+    `• **Caution**: ${profile.worstSession ? `Avoid ${profile.worstSession} session leakage.` : 'Keep risk strictly at 1%.'}\n\n` +
+    `**Action:**\n` +
+    `Score your next setup using the Pre-Trade Quality Scorer before taking risk.` +
+    sampleCaveat;
 }
 
 function buildMentorPayload(question: string, trades: Trade[]) {
+  const profile = buildPersonalTradingProfile(trades);
   const report = generateMentorReport(trades);
   const closed = closedTrades(trades);
-  const wins = winningTrades(closed);
-  const losses = losingTrades(closed);
-  const psychologyReviewed = closed.filter((trade) => trade.psychologicalMetrics);
-  const highRiskTrades = closed.filter((trade) => trade.risk > 2);
 
   return {
     question,
+    personalTradingProfile: profile,
     fallbackAnswer: answerTradingQuestionLocally(question, trades),
     report,
     summary: {
-      totalTrades: trades.length,
-      closedTrades: closed.length,
-      wins: wins.length,
-      losses: losses.length,
-      breakEven: closed.filter((trade) => trade.result === 'BE').length,
-      winRate: pct(wins.length, closed.length),
-      totalPnl: Number(closed.reduce((sum, trade) => sum + (trade.pnl || 0), 0).toFixed(2)),
-      averageRisk: Number(avg(closed.map((trade) => trade.risk || 0)).toFixed(2)),
-      averageScore: Math.round(avg(closed.map((trade) => trade.score || 0))),
-      highRiskTrades: highRiskTrades.length,
-      psychologyReviewed: psychologyReviewed.length,
-      psychologyFlags: {
-        revengeTrading: closed.filter((trade) => trade.psychologicalMetrics?.wasRevengeTrading).length,
-        chasing: closed.filter((trade) => trade.psychologicalMetrics?.wasChasing).length,
-        overconfident: closed.filter((trade) => trade.psychologicalMetrics?.wasOverconfident).length,
-      },
+      totalTrades: profile.totalTrades,
+      closedTrades: profile.closedTrades,
+      wins: profile.wins,
+      losses: profile.losses,
+      breakEven: profile.breakEven,
+      winRate: profile.winRate,
+      totalPnl: profile.totalPnl,
+      averageWin: profile.averageWin,
+      averageLoss: profile.averageLoss,
+      profitFactor: profile.profitFactor,
+      bestSession: profile.bestSession,
+      worstSession: profile.worstSession,
+      bestStrategy: profile.bestStrategy,
+      worstStrategy: profile.worstStrategy,
+      bestSymbol: profile.bestSymbol,
+      worstSymbol: profile.worstSymbol,
+      repeatedMistakes: profile.repeatedMistakes,
     },
     performance: {
-      bySession: summarizeGroup(closed, (trade) => trade.session),
-      byStrategy: summarizeGroup(closed, (trade) => trade.strategy),
+      bySession: profile.performanceBySession,
+      byStrategy: profile.performanceByStrategy,
+      bySymbol: profile.performanceBySymbol,
+      byDayOfWeek: profile.performanceByDayOfWeek,
     },
-    recentClosedTrades: closed.slice(0, 30).map((trade) => ({
-      date: trade.date,
-      pair: trade.pair,
-      session: trade.session,
-      strategy: trade.strategy,
-      orderType: trade.orderType,
-      trend: trade.trend,
-      score: trade.score,
-      decision: trade.decision,
-      risk: trade.risk,
-      rrRatio: trade.rrRatio,
-      result: trade.result,
-      pnl: trade.pnl,
-      mentalFocus: trade.mentalFocus,
-      notes: trade.notes,
-      psychology: trade.psychologicalMetrics ? {
-        preTradeEmotionalState: trade.psychologicalMetrics.preTradeEmotionalState,
-        postTradeEmotionalState: trade.psychologicalMetrics.postTradeEmotionalState,
-        wasRevengeTrading: trade.psychologicalMetrics.wasRevengeTrading,
-        wasChasing: trade.psychologicalMetrics.wasChasing,
-        wasOverconfident: trade.psychologicalMetrics.wasOverconfident,
-        lessonsLearned: trade.psychologicalMetrics.lessonsLearned,
-      } : null,
-    })),
+    recentClosedTrades: profile.recentTrades,
   };
 }
 
@@ -375,22 +625,23 @@ export async function answerTradingQuestion(question: string, trades: Trade[]): 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.error || `AI Mentor request failed with status ${response.status}`);
+      throw new Error(data.error || `Mentor request failed with status ${response.status}`);
     }
 
     return {
       answer: data.answer || payload.fallbackAnswer,
-      source: data.source === 'groq' ? 'groq' : 'local-fallback',
+      source: data.source === 'groq' ? 'ai' : 'local-fallback',
       error: data.error,
     };
   } catch (error: any) {
     return {
       answer: payload.fallbackAnswer,
       source: 'local-fallback',
-      error: error.message?.includes('fetch') ? 'AI Mentor API is not reachable.' : error.message || 'AI Mentor API failed.',
+      error: error.message?.includes('fetch') ? 'Offline mode active.' : error.message,
     };
   }
 }

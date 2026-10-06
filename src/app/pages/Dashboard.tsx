@@ -538,7 +538,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h3 className={`text-xs font-bold uppercase tracking-wider ${themeTextPrimary}`}>
-                    Cypher Coach
+                    Hustle Mentor
                   </h3>
                   <p className={`text-[10px] ${themeTextSecondary}`}>Risk & Discipline Radar</p>
                 </div>
@@ -610,7 +610,7 @@ export default function Dashboard() {
             }`}
           >
             <Sparkles size={13} className="text-[#5D5FEF]" />
-            <span>Consult Cypher Mentor</span>
+            <span>Consult Hustle Mentor</span>
           </Link>
         </div>
       </div>
