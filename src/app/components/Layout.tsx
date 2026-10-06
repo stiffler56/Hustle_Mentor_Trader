@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import {
   LayoutDashboard,
@@ -12,27 +12,15 @@ import {
   Calendar,
   Link2,
   Flame,
-  ChevronDown,
-  ChevronRight,
   TrendingUp,
-  Menu,
-  X,
-  RefreshCw,
-  LogOut,
-  Loader2,
-  Plus,
-  Sparkles,
-  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Sun,
   Moon,
 } from 'lucide-react';
 import { useTradesContext } from '../data/TradesContext';
-import { useAuthContext } from '../data/AuthContext';
 import { useChallengeContext } from '../data/ChallengeContext';
-import { usePropAccountsContext } from '../data/PropAccountsContext';
 import { useTheme } from '../data/ThemeContext';
-import type { Trade } from '../data/types';
-import { QuickTradeModal } from './prop-firm/QuickTradeModal';
 
 interface NavItemConfig {
   to: string;
@@ -59,17 +47,28 @@ const NAV_ITEMS: NavItemConfig[] = [
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { trades, syncNow, isBrokerSyncing } = useTradesContext();
+  const { trades } = useTradesContext();
   const { challenge, dayNumber } = useChallengeContext();
-  const { accounts, selectedAccount, setSelectedAccountId } = usePropAccountsContext();
   const { isDayMode, toggleTheme } = useTheme();
 
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-  const [dateRangeText, setDateRangeText] = useState('This Month');
-  const [isQuickTradeOpen, setIsQuickTradeOpen] = useState(false);
-  const [currencyMode, setCurrencyMode] = useState<'$' | '%'>('$');
+  // Persistent sidebar expand/collapse state
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hustle_sidebar_expanded') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleExpand = () => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('hustle_sidebar_expanded', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const isBrokerPage =
     location.pathname === '/broker-integration' ||
@@ -85,22 +84,6 @@ export function Layout() {
     }
   }, [isBrokerPage, hasVisitedBroker]);
 
-  const accountRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
-        setAccountDropdownOpen(false);
-      }
-      if (dateRef.current && !dateRef.current.contains(e.target as Node)) {
-        setDateDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const openTrades = trades.filter((t) => t.status === 'OPEN').length;
 
   const isItemActive = (to: string, aliasPaths?: string[]) => {
@@ -115,50 +98,153 @@ export function Layout() {
     return false;
   };
 
-  const activeAccountLabel = selectedAccount
-    ? `${selectedAccount.accountNumber} • $${Math.round(selectedAccount.initialBalance / 1000)}k ${selectedAccount.propDetails?.phase || 'Active'}`
-    : accounts[0]
-    ? `${accounts[0].accountNumber} • $${Math.round(accounts[0].initialBalance / 1000)}k`
-    : 'FundingPips #20823275 • $50k';
-
   return (
-    <div className={`flex h-screen overflow-hidden ${isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'}`}>
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setMobileOpen(false)} />
-      )}
-
-      {/* ── Navigation Sidebar (TradeZella Slim Left Strip with Violet Accents) ── */}
+    <div
+      className={`flex h-screen w-screen overflow-hidden ${
+        isDayMode ? 'bg-[#EBEAE8] text-[#111827]' : 'bg-[#0B0C0E] text-white'
+      }`}
+    >
+      {/* ── Navigation Sidebar Container ── */}
       <aside
-        className={`fixed lg:static top-0 left-0 h-full z-50 flex flex-col transition-all duration-300 lg:translate-x-0 ${
+        className={`h-full shrink-0 flex flex-col transition-all duration-300 ease-in-out z-20 ${
+          isExpanded ? 'w-60' : 'w-[72px]'
+        } ${
           isDayMode
             ? 'bg-white border-r border-[#E5E4E2]'
             : 'bg-[#0B0C0E] border-r border-[#1E2026]'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: 72, flexShrink: 0 }}
+        }`}
       >
-        {/* Brand Icon / Logo */}
-        <div className="flex flex-col items-center justify-center py-4 border-b border-[#E5E4E2] dark:border-[#1E2026]">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#5D5FEF] shadow-md shadow-indigo-500/20 text-white cursor-pointer" onClick={() => navigate('/')}>
-            <TrendingUp size={18} />
-          </div>
-          <span className="text-[9px] font-black uppercase tracking-wider text-[#5D5FEF] mt-1.5 font-mono">
-            CYPHER
-          </span>
-          <button className="mt-2 lg:hidden text-[#6B7280] dark:text-[#8E95A5]" onClick={() => setMobileOpen(false)}>
-            <X size={16} />
-          </button>
-        </div>
+        {/* Brand Header */}
+        {isExpanded ? (
+          <div
+            className={`flex items-center justify-between p-3.5 border-b shrink-0 ${
+              isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]'
+            }`}
+          >
+            <div
+              className="flex items-center gap-2.5 cursor-pointer min-w-0"
+              onClick={() => navigate('/')}
+            >
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#5D5FEF] shadow-md shadow-indigo-500/20 text-white shrink-0">
+                <TrendingUp size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black tracking-wider uppercase">CYPHER</span>
+                  <span className="text-[8px] font-extrabold px-1 rounded bg-[#5D5FEF]/20 text-[#5D5FEF] border border-[#5D5FEF]/30">
+                    PRO
+                  </span>
+                </div>
+                <p
+                  className={`text-[9px] font-semibold tracking-widest truncate ${
+                    isDayMode ? 'text-[#6B7280]' : 'text-[#8E95A5]'
+                  }`}
+                >
+                  TRADING DESK
+                </p>
+              </div>
+            </div>
 
-        {/* Icon Navigation Items */}
-        <nav className="flex-1 py-3 px-2 flex flex-col items-center gap-2 overflow-y-auto">
+            <button
+              type="button"
+              onClick={handleToggleExpand}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
+                isDayMode
+                  ? 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F2F1EF]'
+                  : 'text-[#8E95A5] hover:text-white hover:bg-[#131418]'
+              }`}
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`flex flex-col items-center py-3.5 border-b shrink-0 ${
+              isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]'
+            }`}
+          >
+            <div
+              className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#5D5FEF] shadow-md shadow-indigo-500/20 text-white cursor-pointer"
+              onClick={() => navigate('/')}
+              title="Cypher Trading"
+            >
+              <TrendingUp size={18} />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-wider text-[#5D5FEF] mt-1 font-mono">
+              CYPHER
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleExpand}
+              className={`mt-2 p-1 rounded-lg transition-colors cursor-pointer ${
+                isDayMode
+                  ? 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F2F1EF]'
+                  : 'text-[#8E95A5] hover:text-white hover:bg-[#131418]'
+              }`}
+              title="Expand Sidebar"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
+
+        {/* Navigation Items */}
+        <nav
+          className={`flex-1 py-3 flex flex-col gap-1.5 overflow-y-auto ${
+            isExpanded ? 'px-2' : 'px-2 items-center'
+          }`}
+        >
           {NAV_ITEMS.map(({ to, label, icon: Icon, badgeType, aliasPaths }) => {
             const active = isItemActive(to, aliasPaths);
+
+            if (isExpanded) {
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  title={label}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    active
+                      ? 'bg-[#5D5FEF] text-white shadow-md shadow-indigo-500/25'
+                      : isDayMode
+                      ? 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F2F1EF]'
+                      : 'text-[#8E95A5] hover:text-white hover:bg-[#131418]'
+                  }`}
+                >
+                  <Icon size={18} className="shrink-0" />
+                  <span className="truncate">{label}</span>
+                  {badgeType === 'trades' && openTrades > 0 && (
+                    <span
+                      className={`ml-auto text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                        active
+                          ? 'bg-white/20 text-white'
+                          : 'bg-[#059669]/15 text-[#059669]'
+                      }`}
+                    >
+                      {openTrades}
+                    </span>
+                  )}
+                  {badgeType === 'challenge' && challenge.isActive && (
+                    <span
+                      className={`ml-auto text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                        active
+                          ? 'bg-white/20 text-white'
+                          : 'bg-[#5D5FEF]/15 text-[#5D5FEF]'
+                      }`}
+                    >
+                      D{dayNumber}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            }
+
             return (
               <NavLink
                 key={to}
                 to={to}
                 title={label}
-                onClick={() => setMobileOpen(false)}
                 className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all ${
                   active
                     ? 'bg-[#5D5FEF] text-white shadow-md shadow-indigo-500/25'
@@ -181,274 +267,107 @@ export function Layout() {
           })}
         </nav>
 
-        {/* Bottom Theme Mode Switcher Pill */}
-        <div className="p-3 flex flex-col items-center border-t border-[#E5E4E2] dark:border-[#1E2026]">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={isDayMode ? 'Switch to Night Mode' : 'Switch to Day Mode'}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              isDayMode
-                ? 'bg-[#F2F1EF] text-[#111827] hover:bg-[#E5E4E2]'
-                : 'bg-[#131418] text-white hover:bg-[#181A20]'
+        {/* Bottom Theme Mode Switcher */}
+        {isExpanded ? (
+          <div
+            className={`p-3 border-t shrink-0 ${
+              isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]'
             }`}
           >
-            {isDayMode ? <Sun size={17} className="text-[#5D5FEF]" /> : <Moon size={17} className="text-[#6366F1]" />}
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main App Content ── */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${isDayMode ? 'bg-[#EBEAE8]' : 'bg-[#0B0C0E]'}`}>
-        {/* Universal Top Header Bar */}
-        <header
-          className={`h-14 border-b px-4 lg:px-6 flex items-center justify-between shrink-0 z-30 transition-colors ${
-            isDayMode
-              ? 'bg-white border-[#E5E4E2] text-[#111827]'
-              : 'bg-[#0B0C0E] border-[#1E2026] text-white'
-          }`}
-        >
-          {/* Left Title / Breadcrumbs */}
-          <div className="flex items-center gap-3">
             <button
-              onClick={() => setMobileOpen(true)}
-              className="p-1.5 rounded-lg lg:hidden text-[#6B7280] hover:text-[#111827] dark:text-[#8E95A5] dark:hover:text-white"
-            >
-              <Menu size={18} />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#5D5FEF]">
-                Cypher Terminal
-              </span>
-              <span className="text-[#9CA3AF] text-xs">/</span>
-              <span className="text-xs font-medium text-[#6B7280] dark:text-[#8E95A5]">
-                {location.pathname === '/' ? 'Dashboard' : location.pathname.slice(1).replace('-', ' ').toUpperCase()}
-              </span>
-            </div>
-          </div>
-
-          {/* Right Utility Pill Cluster */}
-          <div className="flex items-center gap-2.5">
-            {/* 1. Date ▾ Selector Pill */}
-            <div className="relative" ref={dateRef}>
-              <button
-                type="button"
-                onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
-                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors cursor-pointer shadow-xs ${
-                  isDayMode
-                    ? 'bg-white border-[#E5E4E2] text-[#111827] hover:bg-[#F7F7F6]'
-                    : 'bg-[#131418] border-[#1E2026] text-white hover:bg-[#181A20]'
-                }`}
-              >
-                <span>{dateRangeText}</span>
-                <ChevronDown size={13} className="opacity-60" />
-              </button>
-
-              {dateDropdownOpen && (
-                <div
-                  className={`absolute right-0 mt-1.5 w-40 rounded-xl py-1.5 border shadow-xl z-50 ${
-                    isDayMode
-                      ? 'bg-white border-[#E5E4E2] text-[#111827]'
-                      : 'bg-[#131418] border-[#1E2026] text-white'
-                  }`}
-                >
-                  {['Today', 'This Week', 'This Month', 'Last 30 Days', 'All Time'].map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        setDateRangeText(d);
-                        setDateDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between ${
-                        dateRangeText === d
-                          ? 'text-[#5D5FEF] font-bold bg-[#EEF0FF] dark:bg-[#181A20]'
-                          : isDayMode
-                          ? 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F7F7F6]'
-                          : 'text-[#8E95A5] hover:text-white hover:bg-[#181A20]'
-                      }`}
-                    >
-                      <span>{d}</span>
-                      {dateRangeText === d && <CheckCircle2 size={12} />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 2. Accounts ▾ Dropdown Pill */}
-            <div className="relative" ref={accountRef}>
-              <button
-                type="button"
-                onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-                className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors cursor-pointer shadow-xs max-w-[210px] truncate ${
-                  isDayMode
-                    ? 'bg-white border-[#E5E4E2] text-[#111827] hover:bg-[#F7F7F6]'
-                    : 'bg-[#131418] border-[#1E2026] text-white hover:bg-[#181A20]'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0" />
-                <span className="truncate">{activeAccountLabel}</span>
-                <ChevronDown size={13} className="opacity-60 shrink-0" />
-              </button>
-
-              {accountDropdownOpen && (
-                <div
-                  className={`absolute right-0 mt-1.5 w-64 rounded-xl py-1.5 border shadow-xl z-50 ${
-                    isDayMode
-                      ? 'bg-white border-[#E5E4E2] text-[#111827]'
-                      : 'bg-[#131418] border-[#1E2026] text-white'
-                  }`}
-                >
-                  <div className="px-3 py-1 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider border-b border-[#E5E4E2] dark:border-[#1E2026]">
-                    Select Account
-                  </div>
-                  {accounts.map((acc) => {
-                    const isSelected = selectedAccount?.id === acc.id;
-                    return (
-                      <button
-                        key={acc.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedAccountId(acc.id);
-                          setAccountDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
-                          isSelected
-                            ? 'bg-[#EEF0FF] text-[#5D5FEF] font-bold dark:bg-[#181A20] dark:text-[#6366F1]'
-                            : isDayMode
-                            ? 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F7F7F6]'
-                            : 'text-[#8E95A5] hover:text-white hover:bg-[#181A20]'
-                        }`}
-                      >
-                        <div className="truncate">
-                          <p className="truncate font-medium">{acc.name || acc.accountNumber}</p>
-                          <p className="text-[10px] text-[#9CA3AF]">
-                            {acc.accountNumber} • ${Math.round(acc.initialBalance / 1000)}k
-                          </p>
-                        </div>
-                        {isSelected && <CheckCircle2 size={13} className="text-[#5D5FEF] shrink-0 ml-2" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Currency / Unit Toggles (G, $, %) & Refresh */}
-            <div
-              className={`flex items-center rounded-lg p-0.5 border ${
+              type="button"
+              onClick={toggleTheme}
+              title={isDayMode ? 'Switch to Night Mode' : 'Switch to Day Mode'}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isDayMode
-                  ? 'bg-white border-[#E5E4E2] text-[#6B7280]'
-                  : 'bg-[#131418] border-[#1E2026] text-[#8E95A5]'
+                  ? 'bg-[#F2F1EF] text-[#111827] hover:bg-[#E5E4E2]'
+                  : 'bg-[#131418] text-white hover:bg-[#181A20]'
               }`}
             >
-              <button
-                type="button"
-                onClick={() => setCurrencyMode('$')}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
-                  currencyMode === '$'
-                    ? isDayMode
-                      ? 'bg-[#EEF0FF] text-[#5D5FEF]'
-                      : 'bg-[#1E2026] text-white'
-                    : 'hover:text-[#111827] dark:hover:text-white'
-                }`}
-              >
-                $
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrencyMode('%')}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
-                  currencyMode === '%'
-                    ? isDayMode
-                      ? 'bg-[#EEF0FF] text-[#5D5FEF]'
-                      : 'bg-[#1E2026] text-white'
-                    : 'hover:text-[#111827] dark:hover:text-white'
-                }`}
-              >
-                %
-              </button>
-              <button
-                type="button"
-                onClick={() => syncNow()}
-                title="Refresh and sync data"
-                className="p-1 hover:text-[#5D5FEF] transition-colors ml-0.5"
-              >
-                <RefreshCw size={12} className={isBrokerSyncing ? 'animate-spin text-[#5D5FEF]' : ''} />
-              </button>
-            </div>
-
-            {/* 4. Primary CTA: "Ask Cypher / + Log Trade" in Vibrant Purple */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => navigate('/utilities/mentor')}
-                className={`hidden md:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+              <div className="flex items-center gap-2.5">
+                {isDayMode ? (
+                  <Sun size={16} className="text-[#5D5FEF]" />
+                ) : (
+                  <Moon size={16} className="text-[#6366F1]" />
+                )}
+                <span>{isDayMode ? 'Day Mode' : 'Night Mode'}</span>
+              </div>
+              <div
+                className={`w-7 h-4 rounded-full transition-colors flex items-center px-0.5 ${
                   isDayMode
-                    ? 'bg-white hover:bg-[#F7F7F6] border-[#E5E4E2] text-[#5D5FEF]'
-                    : 'bg-[#181A20] hover:bg-[#1E2026] border-[#1E2026] text-white'
+                    ? 'bg-[#5D5FEF] justify-end'
+                    : 'bg-[#1E2026] justify-start'
                 }`}
-                title="Ask Cypher AI Coach"
               >
-                <Sparkles size={13} className="text-[#5D5FEF]" />
-                <span>Ask Cypher</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsQuickTradeOpen(true)}
-                className="bg-[#5D5FEF] hover:bg-[#4F51D8] text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>+ Log Trade</span>
-              </button>
-            </div>
+                <div className="w-3 h-3 rounded-full bg-white shadow-xs" />
+              </div>
+            </button>
           </div>
-        </header>
-
-        {/* Page View Container */}
-        <main className={`flex-1 ${isBrokerPage ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-          {/* Persistent WebTerminal Frame - kept alive in DOM to retain cookies, WebSockets, and state */}
-          {hasVisitedBroker && (
-            <div
-              style={
-                isBrokerPage
-                  ? { width: '100%', height: '100%', display: 'block', overflow: 'hidden' }
-                  : {
-                      position: 'fixed',
-                      top: '-99999px',
-                      left: '-99999px',
-                      width: '1px',
-                      height: '1px',
-                      opacity: 0,
-                      pointerEvents: 'none',
-                      visibility: 'hidden',
-                    }
-              }
+        ) : (
+          <div
+            className={`p-3 flex flex-col items-center border-t shrink-0 ${
+              isDayMode ? 'border-[#E5E4E2]' : 'border-[#1E2026]'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={isDayMode ? 'Switch to Night Mode' : 'Switch to Day Mode'}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                isDayMode
+                  ? 'bg-[#F2F1EF] text-[#111827] hover:bg-[#E5E4E2]'
+                  : 'bg-[#131418] text-white hover:bg-[#181A20]'
+              }`}
             >
-              <iframe
-                src="https://mt5-sim1.fundingpips.com/terminal"
-                title="Funding Pips MT5 WebTerminal"
-                className="w-full h-full border-0 block"
-                allow="clipboard-read; clipboard-write; fullscreen; web-share; autoplay"
-              />
-            </div>
-          )}
-
-          <div className={isBrokerPage ? 'hidden' : 'contents'}>
-            <Outlet />
+              {isDayMode ? (
+                <Sun size={17} className="text-[#5D5FEF]" />
+              ) : (
+                <Moon size={17} className="text-[#6366F1]" />
+              )}
+            </button>
           </div>
-        </main>
-      </div>
+        )}
+      </aside>
 
-      <QuickTradeModal
-        account={selectedAccount}
-        isOpen={isQuickTradeOpen}
-        onClose={() => setIsQuickTradeOpen(false)}
-      />
+      {/* ── Main Content Area (Clean flex-1 with zero overlap) ── */}
+      <main
+        className={`flex-1 flex flex-col min-w-0 h-full ${
+          isBrokerPage ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
+        {/* Persistent WebTerminal Frame - kept alive in DOM to retain cookies, WebSockets, and state */}
+        {hasVisitedBroker && (
+          <div
+            style={
+              isBrokerPage
+                ? { width: '100%', height: '100%', display: 'block', overflow: 'hidden' }
+                : {
+                    position: 'fixed',
+                    top: '-99999px',
+                    left: '-99999px',
+                    width: '1px',
+                    height: '1px',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    visibility: 'hidden',
+                  }
+            }
+          >
+            <iframe
+              src="https://mt5-sim1.fundingpips.com/terminal"
+              title="Funding Pips MT5 WebTerminal"
+              className="w-full h-full border-0 block"
+              allow="clipboard-read; clipboard-write; fullscreen; web-share; autoplay"
+            />
+          </div>
+        )}
+
+        <div className={isBrokerPage ? 'hidden' : 'contents'}>
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }
-export default Layout;
 
+export default Layout;
