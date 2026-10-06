@@ -71,6 +71,20 @@ export function Layout() {
   const [isQuickTradeOpen, setIsQuickTradeOpen] = useState(false);
   const [currencyMode, setCurrencyMode] = useState<'$' | '%'>('$');
 
+  const isBrokerPage =
+    location.pathname === '/broker-integration' ||
+    location.pathname === '/broker' ||
+    location.pathname.startsWith('/broker-integration/') ||
+    location.pathname.startsWith('/broker/');
+
+  const [hasVisitedBroker, setHasVisitedBroker] = useState(() => isBrokerPage);
+
+  useEffect(() => {
+    if (isBrokerPage && !hasVisitedBroker) {
+      setHasVisitedBroker(true);
+    }
+  }, [isBrokerPage, hasVisitedBroker]);
+
   const accountRef = useRef<HTMLDivElement>(null);
   const dateRef = useRef<HTMLDivElement>(null);
 
@@ -394,8 +408,37 @@ export function Layout() {
         </header>
 
         {/* Page View Container */}
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
+        <main className={`flex-1 ${isBrokerPage ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          {/* Persistent WebTerminal Frame - kept alive in DOM to retain cookies, WebSockets, and state */}
+          {hasVisitedBroker && (
+            <div
+              style={
+                isBrokerPage
+                  ? { width: '100%', height: '100%', display: 'block', overflow: 'hidden' }
+                  : {
+                      position: 'fixed',
+                      top: '-99999px',
+                      left: '-99999px',
+                      width: '1px',
+                      height: '1px',
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      visibility: 'hidden',
+                    }
+              }
+            >
+              <iframe
+                src="https://mt5-sim1.fundingpips.com/terminal"
+                title="Funding Pips MT5 WebTerminal"
+                className="w-full h-full border-0 block"
+                allow="clipboard-read; clipboard-write; fullscreen; web-share; autoplay"
+              />
+            </div>
+          )}
+
+          <div className={isBrokerPage ? 'hidden' : 'contents'}>
+            <Outlet />
+          </div>
         </main>
       </div>
 
