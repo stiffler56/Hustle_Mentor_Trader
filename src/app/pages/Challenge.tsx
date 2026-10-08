@@ -1,11 +1,14 @@
 import React from 'react';
+import { Link } from 'react-router';
 import {
   Flame, Trophy, Target, TrendingUp, Shield, AlertTriangle, CheckCircle2,
   Play, StopCircle, Sun, Moon, CalendarDays, BookOpen, Brain, Scale, Gauge,
+  X, Clock, ChevronRight,
 } from 'lucide-react';
 import { useChallengeContext } from '../data/ChallengeContext';
 import { useTradesContext } from '../data/TradesContext';
 import { useTheme } from '../data/ThemeContext';
+import type { Trade } from '../data/types';
 import {
   CHALLENGE_RULE_CONFIG,
   addDaysToDate,
@@ -13,6 +16,7 @@ import {
   calculateDisciplineBreakdown,
   disciplineInterpretation,
   evaluateChallengeRules,
+  evaluateTradeRules,
   getMissionStatus,
   getTodayString,
   missionStatusLabel,
@@ -57,7 +61,7 @@ function MiniBar({ value, color }: { value: number | null; color: string }) {
   );
 }
 
-function DayCell({ day }: { day: ChallengeDayInfo }) {
+function DayCell({ day, onClick }: { day: ChallengeDayInfo; onClick: () => void }) {
   const { colors } = useTheme();
   const styles: Record<DayStatus, { bg: string; border: string; color: string }> = {
     future: { bg: 'transparent', border: colors.border, color: colors.textFaint },
@@ -71,17 +75,177 @@ function DayCell({ day }: { day: ChallengeDayInfo }) {
   };
   const s = styles[day.status];
   const night = sessionIsNight(day.session);
+  const hasTrades = day.tradeCount > 0;
+  const closedCount = day.trades.filter(t => t.status === 'CLOSED' && t.result).length;
+  const pnlPositive = day.pnl >= 0;
+  const isToday = day.status === 'today';
+  const reviewed = hasTrades && closedCount > 0 && day.reviewsPending === 0;
 
   return (
-    <div
-      className="rounded-lg flex flex-col items-center justify-between px-1 pt-1.5 pb-1 transition-all"
-      style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.color, minHeight: 52 }}
-      title={`Day ${day.dayNum}${day.session ? ` · ${day.session}` : ''}`}
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-lg flex flex-col items-stretch px-1.5 pt-1.5 pb-1 transition-all hover:brightness-110"
+      style={{
+        background: s.bg,
+        border: `1px solid ${isToday ? '#f59e0b' : s.border}`,
+        boxShadow: isToday ? '0 0 0 1px #f59e0b inset' : undefined,
+        color: s.color,
+        minHeight: 62,
+        cursor: day.date ? 'pointer' : 'default',
+      }}
+      title={`Day ${day.dayNum}${day.session ? ` · ${day.session}` : ''}${day.violations ? ` · ${day.violations} violation(s)` : ''}`}
     >
-      <span style={{ fontSize: 11, lineHeight: 1 }}>{day.dayNum}</span>
-      <div style={{ height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="flex items-center justify-between" style={{ lineHeight: 1 }}>
+        <span style={{ fontSize: 11 }}>{day.dayNum}</span>
+        {day.violations > 0 && <AlertTriangle size={9} style={{ color: '#f87171' }} />}
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
+        {hasTrades ? (
+          closedCount > 0 ? (
+            <span className="text-[10px]" style={{ color: pnlPositive ? '#10b981' : '#f87171' }}>
+              {pnlPositive ? '+' : '-'}${Math.abs(day.pnl)}
+            </span>
+          ) : (
+            <span className="text-[9px]" style={{ color: colors.textMuted }}>Open</span>
+          )
+        ) : (
+          <span className="text-[9px]" style={{ color: colors.textMuted }}>
+            {isToday ? 'Today' : day.status === 'rest' ? 'Rest' : ''}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-center gap-1" style={{ height: 12 }}>
+        {hasTrades && <span className="text-[8px]" style={{ color: colors.textMuted }}>{day.tradeCount}T</span>}
+        {day.reviewsPending > 0 && <Clock size={9} style={{ color: '#f59e0b' }} />}
+        {reviewed && <CheckCircle2 size={9} style={{ color: '#10b981' }} />}
         {night === true && <Moon size={9} style={{ color: '#818cf8', opacity: 0.9 }} fill="rgba(129,140,248,0.4)" />}
         {night === false && <Sun size={9} style={{ color: '#fbbf24', opacity: 0.9 }} fill="rgba(251,191,36,0.35)" />}
+      </div>
+    </button>
+  );
+}
+
+const DAY_STATUS_LABEL: Record<DayStatus, string> = {
+  future: 'Future',
+  rest: 'Rest day',
+  win: 'Win',
+  loss: 'Loss',
+  be: 'Break-even',
+  pass: 'Passed — pending result',
+  violation: 'Rule violation',
+  today: 'Today',
+};
+
+function TradeRuleChips({ trade }: { trade: Trade }) {
+  const { colors } = useTheme();
+  return (
+    <div className="flex flex-wrap gap-1 mt-2">
+      {evaluateTradeRules(trade)
+        .filter(r => r.applicable)
+        .map(r => (
+          <span
+            key={r.ruleId}
+            className="text-[10px] px-1.5 py-0.5 rounded"
+            style={{
+              background: r.passed ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+              color: r.passed ? '#10b981' : '#f87171',
+            }}
+          >
+            {r.passed ? '✓' : '✕'} {r.label}
+          </span>
+        ))}
+      <span
+        className="text-[10px] px-1.5 py-0.5 rounded"
+        style={{
+          background: trade.psychologicalMetrics ? 'rgba(96,165,250,0.12)' : `${colors.rowBorder}`,
+          color: trade.psychologicalMetrics ? '#60a5fa' : colors.textMuted,
+        }}
+      >
+        {trade.psychologicalMetrics ? '✓ Review' : 'Review pending'}
+      </span>
+    </div>
+  );
+}
+
+function DayDetailModal({ day, onClose }: { day: ChallengeDayInfo; onClose: () => void }) {
+  const { colors } = useTheme();
+  const closed = day.trades.filter(t => t.status === 'CLOSED' && t.result);
+  const totalPnL = closed.reduce((a, t) => a + (t.pnl ?? 0), 0);
+  const pnlColor = totalPnL >= 0 ? '#10b981' : '#f87171';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div
+        className="relative rounded-2xl p-5 w-full max-w-lg overflow-y-auto"
+        style={{ background: colors.surface, border: `1px solid ${colors.border}`, maxHeight: '90vh' }}
+      >
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <p className="text-base" style={{ color: colors.text }}>Day {day.dayNum}</p>
+            <p className="text-xs mt-0.5" style={{ color: colors.textMuted }}>
+              {day.date ?? '—'} · {DAY_STATUS_LABEL[day.status]}
+              {day.session ? ` · ${day.session}` : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: colors.textMuted }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            { label: 'Total P&L', value: `${totalPnL >= 0 ? '+' : '-'}$${Math.abs(totalPnL)}`, color: pnlColor },
+            { label: 'Trades', value: `${day.tradeCount}`, color: colors.text },
+            { label: 'Violations', value: `${day.violations}`, color: day.violations > 0 ? '#f87171' : '#10b981' },
+          ].map(s => (
+            <div key={s.label} className="rounded-lg p-3" style={{ background: colors.inputBg, border: `1px solid ${colors.rowBorder}` }}>
+              <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: colors.textMuted }}>{s.label}</p>
+              <p className="text-sm" style={{ color: s.color }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {day.trades.length === 0 ? (
+          <p className="text-sm py-6 text-center" style={{ color: colors.textMuted }}>
+            {day.status === 'future' ? 'This day has not started yet.' : 'No trades logged on this day.'}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {day.trades.map(trade => (
+              <div key={trade.id} className="rounded-xl p-3" style={{ background: colors.inputBg, border: `1px solid ${colors.rowBorder}` }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm" style={{ color: colors.text }}>
+                    {trade.pair} · {trade.orderType}
+                  </span>
+                  <span className="text-xs" style={{ color: trade.result === 'WIN' ? '#10b981' : trade.result === 'LOSS' ? '#f87171' : '#60a5fa' }}>
+                    {trade.result ?? trade.status}
+                    {trade.pnl !== undefined && ` · ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl}`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px]" style={{ color: colors.textMuted }}>
+                  <span>Session: {trade.session}</span>
+                  <span>Score: {trade.score}</span>
+                  <span>Risk: {trade.risk}%</span>
+                  <span>Confluences: {trade.confluences}</span>
+                  <span>Focus: {trade.mentalFocus}</span>
+                </div>
+                <TradeRuleChips trade={trade} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Link
+          to="/journal"
+          className="flex items-center justify-center gap-1.5 mt-4 py-2.5 rounded-xl text-sm hover:opacity-90"
+          style={{ background: colors.inputBg, border: `1px solid ${colors.border}`, color: colors.textSub }}
+        >
+          Open Journal <ChevronRight size={13} />
+        </Link>
       </div>
     </div>
   );
@@ -91,6 +255,7 @@ export default function Challenge() {
   const { challenge, startChallenge, stopChallenge, dayNumber, daysLeft, isCompleted } = useChallengeContext();
   const { trades } = useTradesContext();
   const { colors } = useTheme();
+  const [selectedDay, setSelectedDay] = React.useState<ChallengeDayInfo | null>(null);
 
   const challengeTrades = trades.filter(t => challenge.tradeIds.includes(t.id));
   const todayStr = getTodayString();
@@ -274,14 +439,14 @@ export default function Challenge() {
             <p className="text-sm" style={{ color: colors.textSub }}>30-Day Progress Calendar</p>
           </div>
           <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
-            {days.map(day => <DayCell key={day.dayNum} day={day} />)}
+            {days.map(day => <DayCell key={day.dayNum} day={day} onClick={() => setSelectedDay(day)} />)}
           </div>
           <div className="flex flex-wrap gap-3 mt-4 pt-4" style={{ borderTop: `1px solid ${colors.border}` }}>
             {[
               { label: 'Win', color: '#10b981' }, { label: 'Loss', color: '#f87171' },
-              { label: 'BE', color: '#60a5fa' }, { label: 'Today', color: '#f59e0b' },
-              { label: 'Rest', color: '#6b7280' }, { label: 'Future', color: '#374151' },
-              { label: 'Violation', color: '#ef4444' },
+              { label: 'Break-even', color: '#60a5fa' }, { label: 'Passed', color: '#6b7280' },
+              { label: 'Rule violation', color: '#ef4444' }, { label: 'Today', color: '#f59e0b' },
+              { label: 'Rest', color: '#4b5563' }, { label: 'Future', color: '#374151' },
             ].map(l => (
               <div key={l.label} className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm" style={{ background: l.color, opacity: 0.7 }} />
@@ -295,6 +460,14 @@ export default function Challenge() {
             <div className="flex items-center gap-1.5">
               <Moon size={10} style={{ color: '#818cf8' }} />
               <span className="text-xs" style={{ color: colors.textMuted }}>Night session</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <AlertTriangle size={10} style={{ color: '#f87171' }} />
+              <span className="text-xs" style={{ color: colors.textMuted }}>Rule violation</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock size={10} style={{ color: '#f59e0b' }} />
+              <span className="text-xs" style={{ color: colors.textMuted }}>Review pending</span>
             </div>
           </div>
         </div>
@@ -392,6 +565,8 @@ export default function Challenge() {
           </Card>
         </div>
       </div>
+
+      {selectedDay && <DayDetailModal day={selectedDay} onClose={() => setSelectedDay(null)} />}
     </div>
   );
 }
