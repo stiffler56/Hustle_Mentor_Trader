@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import {
   Flame, Trophy, Target, TrendingUp, Shield, AlertTriangle, CheckCircle2,
   Play, StopCircle, Sun, Moon, CalendarDays, BookOpen, Brain, Scale, Gauge,
-  X, Clock, ChevronRight, Award, Lock, Sparkles, Activity, Zap,
+  X, Clock, ChevronRight, Award, Lock, Sparkles, Activity, Zap, Pause,
 } from 'lucide-react';
 import { useChallengeContext } from '../data/ChallengeContext';
 import { useTradesContext } from '../data/TradesContext';
@@ -435,11 +435,124 @@ function CompletionSummary({
   );
 }
 
+function StartChallengeDialog({
+  challengeNumber,
+  onConfirm,
+  onClose,
+}: {
+  challengeNumber: number;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const requirements = [
+    `Setup score ${CHALLENGE_RULE_CONFIG.minScore}+`,
+    `Maximum risk ${CHALLENGE_RULE_CONFIG.maxRisk}%`,
+    `${CHALLENGE_RULE_CONFIG.minConfluences}+ confluences`,
+    `Symbol: ${CHALLENGE_RULE_CONFIG.symbol}`,
+    `Session: ${CHALLENGE_RULE_CONFIG.session}`,
+    `Mental focus ${CHALLENGE_RULE_CONFIG.minMentalFocus}+`,
+    'Psychology review on every closed trade',
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative rounded-2xl p-5 w-full max-w-md" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <p className="text-base" style={{ color: colors.text }}>Start Challenge #{challengeNumber}</p>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: colors.textMuted }}>
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-xs mb-4" style={{ color: colors.textMuted }}>Your challenge will require:</p>
+        <div className="space-y-1.5 mb-4">
+          {requirements.map(r => (
+            <div key={r} className="flex items-center gap-2">
+              <CheckCircle2 size={12} style={{ color: '#10b981', flexShrink: 0 }} />
+              <span className="text-xs" style={{ color: colors.textSub }}>{r}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] mb-5" style={{ color: colors.textMuted }}>
+          Starting a new challenge resets challenge trade tracking. Your existing journal trades stay saved.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm"
+            style={{ border: `1px solid ${colors.border}`, color: colors.textMuted }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000' }}
+          >
+            Start Challenge
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StopChallengeDialog({
+  challengeNumber,
+  onConfirm,
+  onClose,
+}: {
+  challengeNumber: number;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative rounded-2xl p-5 w-full max-w-md" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <p className="text-base" style={{ color: colors.text }}>Stop this challenge?</p>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: colors.textMuted }}>
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-xs mb-4" style={{ color: colors.textSub }}>
+          Stopping resets the current progress and clears this challenge's tracked trades. Your journal trades stay saved.
+          The next challenge will be #{challengeNumber + 1}.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm"
+            style={{ border: `1px solid ${colors.border}`, color: colors.textMuted }}
+          >
+            Keep Challenge
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl text-sm hover:opacity-90"
+            style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#f87171' }}
+          >
+            Stop Challenge
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Challenge() {
-  const { challenge, startChallenge, stopChallenge, dayNumber, daysLeft, isCompleted } = useChallengeContext();
+  const {
+    challenge, startChallenge, stopChallenge, pauseChallenge, resumeChallenge,
+    dayNumber, daysLeft, isCompleted, isPaused,
+  } = useChallengeContext();
   const { trades } = useTradesContext();
   const { colors } = useTheme();
   const [selectedDay, setSelectedDay] = React.useState<ChallengeDayInfo | null>(null);
+  const [showStartDialog, setShowStartDialog] = React.useState(false);
+  const [showStopDialog, setShowStopDialog] = React.useState(false);
 
   const challengeTrades = trades.filter(t => challenge.tradeIds.includes(t.id));
   const todayStr = getTodayString();
@@ -463,8 +576,14 @@ export default function Challenge() {
   const progressPct = challenge.isActive ? Math.round((dayNumber / 30) * 100) : 0;
   const expectedEnd = challenge.startDate ? addDaysToDate(challenge.startDate, 29) : null;
 
-  const statusText = !challenge.isActive ? 'Not Started' : isCompleted ? 'Completed' : 'Active';
-  const statusColor = !challenge.isActive ? colors.textMuted : isCompleted ? '#10b981' : '#f59e0b';
+  const statusText = !challenge.isActive
+    ? 'Not Started'
+    : isCompleted
+      ? 'Completed'
+      : isPaused
+        ? 'Paused'
+        : 'Active';
+  const statusColor = !challenge.isActive ? colors.textMuted : isCompleted ? '#10b981' : isPaused ? '#60a5fa' : '#f59e0b';
   const pnlColor = summary.totalPnL >= 0 ? '#10b981' : '#f87171';
 
   return (
@@ -481,13 +600,22 @@ export default function Challenge() {
           </p>
         </div>
         {challenge.isActive && (
-          <button
-            onClick={() => { if (confirm('Stop the current challenge?')) stopChallenge(); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${colors.border}`, color: colors.textMuted }}
-          >
-            <StopCircle size={14} /> Stop Challenge
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => (isPaused ? resumeChallenge() : pauseChallenge())}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${colors.border}`, color: colors.textSub }}
+            >
+              {isPaused ? <Play size={14} /> : <Pause size={14} />} {isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              onClick={() => setShowStopDialog(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${colors.border}`, color: colors.textMuted }}
+            >
+              <StopCircle size={14} /> Stop Challenge
+            </button>
+          </div>
         )}
       </div>
 
@@ -510,6 +638,11 @@ export default function Challenge() {
               <p className="text-sm mt-1" style={{ color: colors.textSub }}>
                 {daysLeft} days remaining · Challenge #{challenge.challengeNumber}
               </p>
+              {isPaused && (
+                <p className="text-xs mt-2" style={{ color: '#60a5fa' }}>
+                  Challenge paused — your day counter is frozen until you resume.
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-right">
               <span className="text-xs" style={{ color: colors.textMuted }}>Start date</span>
@@ -544,7 +677,7 @@ export default function Challenge() {
             Trade only when your edge is present. Build consistency over 30 days.
           </p>
           <button
-            onClick={startChallenge}
+            onClick={() => setShowStartDialog(true)}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm hover:opacity-90 transition-all"
             style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000' }}
           >
@@ -558,7 +691,7 @@ export default function Challenge() {
         <CompletionSummary
           summary={summary}
           disciplineScore={discipline.hasData ? discipline.total : null}
-          onStartNew={startChallenge}
+          onStartNew={() => setShowStartDialog(true)}
         />
       )}
 
@@ -625,7 +758,7 @@ export default function Challenge() {
             <p className="text-sm" style={{ color: colors.textSub }}>30-Day Progress Calendar</p>
           </div>
           <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
-            {days.map(day => <DayCell key={day.dayNum} day={day} onClick={() => setSelectedDay(day)} />)}
+            {days.map(day => <DayCell key={day.dayNum} day={day} onClick={() => { if (day.date) setSelectedDay(day); }} />)}
           </div>
           <div className="flex flex-wrap gap-3 mt-4 pt-4" style={{ borderTop: `1px solid ${colors.border}` }}>
             {[
@@ -774,6 +907,20 @@ export default function Challenge() {
       </div>
 
       {selectedDay && <DayDetailModal day={selectedDay} onClose={() => setSelectedDay(null)} />}
+      {showStartDialog && (
+        <StartChallengeDialog
+          challengeNumber={challenge.challengeNumber}
+          onConfirm={() => { startChallenge(); setShowStartDialog(false); }}
+          onClose={() => setShowStartDialog(false)}
+        />
+      )}
+      {showStopDialog && (
+        <StopChallengeDialog
+          challengeNumber={challenge.challengeNumber}
+          onConfirm={() => { stopChallenge(); setShowStopDialog(false); }}
+          onClose={() => setShowStopDialog(false)}
+        />
+      )}
     </div>
   );
 }

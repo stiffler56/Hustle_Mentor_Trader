@@ -102,6 +102,9 @@ export interface ChallengeData {
   startDate: string | null;
   tradeIds: string[];
   challengeNumber: number;
+  isPaused?: boolean;
+  pausedAt?: string | null;
+  pausedMs?: number;
 }
 
 export type { DayData, MonthStats } from '../utils/calendarUtils';

@@ -298,7 +298,7 @@ export default function TradeScorer() {
     [mentalFocus, confluences, session, risk, breakdown.total]
   );
 
-  const challengeActive = challenge.isActive;
+  const challengeActive = challenge.isActive && !challenge.isPaused;
   const challengeBlocked = challengeActive && breakdown.total < 75;
 
   const handleLog = () => {
