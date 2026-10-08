@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import {
   Flame, Trophy, Target, TrendingUp, Shield, AlertTriangle, CheckCircle2,
   Play, StopCircle, Sun, Moon, CalendarDays, BookOpen, Brain, Scale, Gauge,
-  X, Clock, ChevronRight,
+  X, Clock, ChevronRight, Award, Lock, Sparkles, Activity, Zap,
 } from 'lucide-react';
 import { useChallengeContext } from '../data/ChallengeContext';
 import { useTradesContext } from '../data/TradesContext';
@@ -12,7 +12,11 @@ import type { Trade } from '../data/types';
 import {
   CHALLENGE_RULE_CONFIG,
   addDaysToDate,
+  buildChallengeActivity,
   buildChallengeDays,
+  buildChallengeSummary,
+  buildCoachingCards,
+  buildMilestones,
   calculateDisciplineBreakdown,
   disciplineInterpretation,
   evaluateChallengeRules,
@@ -20,9 +24,14 @@ import {
   getMissionStatus,
   getTodayString,
   missionStatusLabel,
-  buildChallengeSummary,
 } from '../data/challengeRules';
-import type { ChallengeDayInfo, DayStatus } from '../data/challengeRules';
+import type {
+  ChallengeActivity,
+  ChallengeDayInfo,
+  ChallengeMilestone,
+  CoachingCard,
+  DayStatus,
+} from '../data/challengeRules';
 
 function sessionIsNight(session: string | null): boolean | null {
   if (!session) return null;
@@ -251,6 +260,181 @@ function DayDetailModal({ day, onClose }: { day: ChallengeDayInfo; onClose: () =
   );
 }
 
+// ── Coaching, milestones, activity & completion ─────────────────────────────
+function CoachingCards({ cards }: { cards: CoachingCard[] }) {
+  const { colors } = useTheme();
+  if (cards.length === 0) return null;
+
+  return (
+    <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {cards.map(card => {
+        const warning = card.tone === 'warning';
+        const accent = warning ? '#f59e0b' : '#10b981';
+        return (
+          <div key={card.id} className="rounded-xl p-4 flex gap-3" style={{ background: `${accent}12`, border: `1px solid ${accent}44` }}>
+            <div className="flex-shrink-0 mt-0.5">
+              {warning
+                ? <AlertTriangle size={16} style={{ color: accent }} />
+                : <Sparkles size={16} style={{ color: accent }} />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm" style={{ color: accent }}>{card.title}</p>
+              <p className="text-xs mt-1" style={{ color: colors.textSub }}>{card.message}</p>
+              <p className="text-xs mt-2" style={{ color: colors.textMuted }}>
+                <span style={{ color: colors.textSub }}>{warning ? 'Recommended action: ' : 'Tip: '}</span>
+                {card.recommendation}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function MilestoneCard({ milestone }: { milestone: ChallengeMilestone }) {
+  const { colors } = useTheme();
+  const accent = milestone.achieved ? '#10b981' : colors.textMuted;
+  const pct = milestone.target > 0 ? Math.round((milestone.progress / milestone.target) * 100) : 0;
+
+  return (
+    <div
+      className="rounded-xl p-3 flex items-start gap-3"
+      style={{
+        background: milestone.achieved ? 'rgba(16,185,129,0.08)' : colors.inputBg,
+        border: `1px solid ${milestone.achieved ? 'rgba(16,185,129,0.4)' : colors.rowBorder}`,
+      }}
+    >
+      <div className="flex-shrink-0 mt-0.5">
+        {milestone.achieved
+          ? <Award size={15} style={{ color: '#10b981' }} />
+          : <Lock size={14} style={{ color: colors.textMuted }} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs" style={{ color: milestone.achieved ? colors.text : colors.textSub }}>{milestone.title}</span>
+          <span className="text-[10px] whitespace-nowrap" style={{ color: accent }}>
+            {milestone.achieved ? 'Achieved' : `${milestone.progress}/${milestone.target}`}
+          </span>
+        </div>
+        <p className="text-[11px] mt-0.5" style={{ color: colors.textMuted }}>{milestone.description}</p>
+        <div className="h-1 rounded-full overflow-hidden mt-2" style={{ background: colors.rowBorder }}>
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: accent }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityFeed({ events }: { events: ChallengeActivity[] }) {
+  const { colors } = useTheme();
+  const tones: Record<ChallengeActivity['tone'], string> = {
+    positive: '#10b981',
+    negative: '#f87171',
+    info: '#60a5fa',
+    neutral: colors.textMuted,
+  };
+
+  if (events.length === 0) {
+    return (
+      <p className="text-xs py-2" style={{ color: colors.textMuted }}>
+        No challenge activity yet. Your first compliant trade will appear here.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {events.map(e => (
+        <div key={e.id} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px solid ${colors.rowBorder}` }}>
+          <span className="text-[10px] whitespace-nowrap" style={{ color: colors.textMuted }}>Day {e.dayNum}</span>
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tones[e.tone] }} />
+          <span className="text-xs" style={{ color: colors.textSub }}>{e.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CompletionSummary({
+  summary,
+  disciplineScore,
+  onStartNew,
+}: {
+  summary: ReturnType<typeof buildChallengeSummary>;
+  disciplineScore: number | null;
+  onStartNew: () => void;
+}) {
+  const { colors } = useTheme();
+  const pnlColor = summary.totalPnL >= 0 ? '#10b981' : '#f87171';
+
+  const stats: { label: string; value: string; color?: string }[] = [
+    { label: 'Challenge Days', value: '30' },
+    { label: 'Trades Logged', value: `${summary.totalTrades}` },
+    { label: 'Wins', value: `${summary.wins}`, color: '#10b981' },
+    { label: 'Losses', value: `${summary.losses}`, color: '#f87171' },
+    { label: 'Win Rate', value: `${summary.winRate}%`, color: summary.winRate >= 55 ? '#10b981' : '#f87171' },
+    { label: 'Total P&L', value: `${summary.totalPnL >= 0 ? '+' : ''}$${summary.totalPnL}`, color: pnlColor },
+    { label: 'Discipline Score', value: disciplineScore === null ? '—' : `${disciplineScore}/100`, color: '#f59e0b' },
+    { label: 'Rules Followed', value: `${summary.rulesFollowed}`, color: '#10b981' },
+    { label: 'Rules Broken', value: `${summary.rulesBroken}`, color: summary.rulesBroken > 0 ? '#f87171' : colors.text },
+    { label: 'Reviews Completed', value: `${summary.reviewsCompleted}` },
+  ];
+
+  return (
+    <section className="rounded-2xl p-5 lg:p-6" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)' }}>
+      <div className="flex items-center gap-3 mb-5">
+        <Trophy size={28} style={{ color: '#f59e0b' }} />
+        <div>
+          <p className="text-lg" style={{ color: '#f59e0b' }}>Challenge Completed</p>
+          <p className="text-xs mt-0.5" style={{ color: colors.textSub }}>
+            Here is how your 30-day discipline challenge finished.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+        {stats.map(s => (
+          <div key={s.label} className="rounded-lg p-3" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: colors.textMuted }}>{s.label}</p>
+            <p className="text-base" style={{ color: s.color ?? colors.text }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        {[
+          { label: 'Best session', value: summary.bestSession ?? '—' },
+          { label: 'Best strategy', value: summary.bestStrategy ?? '—' },
+          { label: 'Most common violation', value: summary.commonViolation ?? 'None' },
+        ].map(item => (
+          <div key={item.label} className="rounded-lg p-3" style={{ background: colors.inputBg, border: `1px solid ${colors.rowBorder}` }}>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: colors.textMuted }}>{item.label}</p>
+            <p className="text-sm" style={{ color: colors.textSub }}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-lg p-3 mb-5" style={{ background: colors.inputBg, border: `1px solid ${colors.rowBorder}` }}>
+        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: colors.textMuted }}>Hustle Mentor recommendation</p>
+        <p className="text-sm" style={{ color: colors.textSub }}>
+          {summary.rulesBroken === 0
+            ? 'Outstanding discipline. Repeat this exact process on your next challenge and keep position sizing identical.'
+            : `You completed the challenge with ${summary.rulesBroken} rule${summary.rulesBroken > 1 ? 's' : ''} broken. Focus on ${summary.commonViolation ?? 'the rules'} next time before increasing risk.`}
+        </p>
+      </div>
+
+      <button
+        onClick={onStartNew}
+        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm hover:opacity-90 transition-all"
+        style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000' }}
+      >
+        <Play size={14} /> Start New Challenge
+      </button>
+    </section>
+  );
+}
+
 export default function Challenge() {
   const { challenge, startChallenge, stopChallenge, dayNumber, daysLeft, isCompleted } = useChallengeContext();
   const { trades } = useTradesContext();
@@ -269,6 +453,9 @@ export default function Challenge() {
   const summary = buildChallengeSummary(challengeTrades, rules, days);
   const missionStatus = getMissionStatus(todayTrades);
   const missionLabel = missionStatusLabel(missionStatus);
+  const milestones = buildMilestones(challengeTrades, days, isCompleted, dayNumber);
+  const activityEvents = buildChallengeActivity(challengeTrades, challenge.startDate);
+  const coaching = buildCoachingCards(challengeTrades, rules);
 
   const rulesFollowed = rules.filter(r => r.hasData && r.passed).length;
   const rulesBroken = rules.filter(r => r.violations > 0).length;
@@ -366,17 +553,13 @@ export default function Challenge() {
         </div>
       )}
 
-      {/* Completed banner */}
+      {/* Completion summary */}
       {isCompleted && (
-        <div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
-          <Trophy size={32} style={{ color: '#f59e0b' }} />
-          <div>
-            <p className="text-base" style={{ color: '#f59e0b' }}>Challenge Completed!</p>
-            <p className="text-sm mt-0.5" style={{ color: colors.textSub }}>
-              Win rate: {summary.winRate}% · P&L: ${summary.totalPnL >= 0 ? '+' : ''}{summary.totalPnL}
-            </p>
-          </div>
-        </div>
+        <CompletionSummary
+          summary={summary}
+          disciplineScore={discipline.hasData ? discipline.total : null}
+          onStartNew={startChallenge}
+        />
       )}
 
       {/* Today's Mission */}
@@ -416,6 +599,9 @@ export default function Challenge() {
           )}
         </Card>
       )}
+
+      {/* Coaching warnings & encouragement */}
+      {challenge.isActive && <CoachingCards cards={coaching} />}
 
       {/* Summary statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -564,6 +750,27 @@ export default function Challenge() {
             </div>
           </Card>
         </div>
+      </div>
+
+      {/* Milestones & recent activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Zap size={14} style={{ color: '#f59e0b' }} />
+            <p className="text-xs uppercase tracking-widest" style={{ color: colors.textSub }}>Challenge Milestones</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {milestones.map(m => <MilestoneCard key={m.id} milestone={m} />)}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={14} style={{ color: '#f59e0b' }} />
+            <p className="text-xs uppercase tracking-widest" style={{ color: colors.textSub }}>Recent Activity</p>
+          </div>
+          <ActivityFeed events={activityEvents} />
+        </Card>
       </div>
 
       {selectedDay && <DayDetailModal day={selectedDay} onClose={() => setSelectedDay(null)} />}
