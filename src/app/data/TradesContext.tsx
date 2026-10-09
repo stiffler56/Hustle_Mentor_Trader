@@ -46,7 +46,17 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
     if (isGuest) {
       try {
         const s = localStorage.getItem(STORAGE_KEY);
-        if (s) return JSON.parse(s);
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((t: any) =>
+              t.accountId !== 'acc-ftmo-100k-phase2' &&
+              t.accountId !== 'acc-icmarkets-live' &&
+              !t.notes?.includes('Auto-synced MT ticket') &&
+              t.bais !== 'MT Investor Sync'
+            );
+          }
+        }
       } catch {}
     }
     return [];
@@ -96,8 +106,19 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
         const raw = localStorage.getItem('hustle_trading_v1');
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setTrades(parsed);
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter((t: any) =>
+              t.accountId !== 'acc-ftmo-100k-phase2' &&
+              t.accountId !== 'acc-icmarkets-live' &&
+              !t.notes?.includes('Auto-synced MT ticket') &&
+              t.bais !== 'MT Investor Sync'
+            );
+            cleaned.sort((a, b) => {
+              const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+              const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+              return timeB - timeA;
+            });
+            setTrades(cleaned);
           }
         }
       } catch {}
@@ -193,7 +214,12 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
       let updatedTradesCount = 0;
 
       setTrades(prev => {
-        const cleanPrev = prev.filter(t => !t.notes?.includes('Auto-synced MT ticket'));
+        const cleanPrev = prev.filter(t =>
+          !t.notes?.includes('Auto-synced MT ticket') &&
+          t.bais !== 'MT Investor Sync' &&
+          t.accountId !== 'acc-ftmo-100k-phase2' &&
+          t.accountId !== 'acc-icmarkets-live'
+        );
         const incomingMap = new Map(incomingTrades.map(t => [t.brokerTradeId || t.id, t]));
         const existingKeys = new Set(cleanPrev.map(t => t.brokerTradeId || t.id));
 
@@ -224,7 +250,13 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        return [...brandNew, ...updatedExisting];
+        const merged = [...brandNew, ...updatedExisting];
+        merged.sort((a, b) => {
+          const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+          const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+          return timeB - timeA;
+        });
+        return merged;
       });
 
       return {
@@ -300,13 +332,39 @@ export function TradesProvider({ children }: { children: React.ReactNode }) {
   const clearTrades = () => setTrades([]);
 
   const importTrades = (incoming: Trade[], mode: 'replace' | 'merge'): number => {
-    if (mode === 'replace') { setTrades(incoming); return incoming.length; }
+    const cleanIncoming = incoming.filter((t: any) =>
+      t.accountId !== 'acc-ftmo-100k-phase2' &&
+      t.accountId !== 'acc-icmarkets-live' &&
+      !t.notes?.includes('Auto-synced MT ticket') &&
+      t.bais !== 'MT Investor Sync'
+    );
+    if (mode === 'replace') {
+      cleanIncoming.sort((a, b) => {
+        const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+        const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+        return timeB - timeA;
+      });
+      setTrades(cleanIncoming);
+      return cleanIncoming.length;
+    }
     let added = 0;
     setTrades(prev => {
-      const ids = new Set(prev.map(t => t.id));
-      const fresh = incoming.filter(t => !ids.has(t.id));
+      const cleanPrev = prev.filter(t =>
+        !t.notes?.includes('Auto-synced MT ticket') &&
+        t.bais !== 'MT Investor Sync' &&
+        t.accountId !== 'acc-ftmo-100k-phase2' &&
+        t.accountId !== 'acc-icmarkets-live'
+      );
+      const ids = new Set(cleanPrev.map(t => t.id));
+      const fresh = cleanIncoming.filter(t => !ids.has(t.id));
       added = fresh.length;
-      return [...fresh, ...prev];
+      const merged = [...fresh, ...cleanPrev];
+      merged.sort((a, b) => {
+        const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+        const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+        return timeB - timeA;
+      });
+      return merged;
     });
     return added;
   };

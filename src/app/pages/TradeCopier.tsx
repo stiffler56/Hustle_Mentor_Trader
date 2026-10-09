@@ -99,7 +99,7 @@ const INITIAL_SLAVES: SlaveAccountConfig[] = [
     accountNumber: '#20823275',
     name: 'FundingPips $50k Evaluation',
     broker: 'FundingPips',
-    platform: 'cTrader',
+    platform: 'MetaTrader 5',
     isActive: true,
     sizingMode: 'RISK_MULTIPLIER',
     multiplierValue: 1.0,
@@ -107,20 +107,6 @@ const INITIAL_SLAVES: SlaveAccountConfig[] = [
     copySlTp: true,
     openPositionsCount: 2,
     floatingPnl: 475.00,
-  },
-  {
-    id: 'slave-2',
-    accountNumber: '#78219432',
-    name: 'FTMO $100k Challenge',
-    broker: 'FTMO',
-    platform: 'MetaTrader 5',
-    isActive: true,
-    sizingMode: 'EQUITY_RATIO',
-    multiplierValue: 2.0,
-    maxSlippagePips: 1.5,
-    copySlTp: true,
-    openPositionsCount: 2,
-    floatingPnl: 950.00,
   },
 ];
 
@@ -138,18 +124,6 @@ const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
     status: 'COPIED',
   },
   {
-    id: 'log-2',
-    timestamp: '11:02:45.132',
-    symbol: 'EURUSD',
-    action: 'SELL',
-    masterLot: 1.00,
-    slaveLot: 2.00,
-    slaveAccount: 'FTMO $100k #78219432',
-    delayMs: 14,
-    slippagePips: 0.4,
-    status: 'COPIED',
-  },
-  {
     id: 'log-3',
     timestamp: '10:14:22.045',
     symbol: 'XAUUSD',
@@ -159,18 +133,6 @@ const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
     slaveAccount: 'FundingPips $50k #20823275',
     delayMs: 9,
     slippagePips: 0.1,
-    status: 'COPIED',
-  },
-  {
-    id: 'log-4',
-    timestamp: '10:14:22.058',
-    symbol: 'XAUUSD',
-    action: 'BUY',
-    masterLot: 0.50,
-    slaveLot: 1.00,
-    slaveAccount: 'FTMO $100k #78219432',
-    delayMs: 12,
-    slippagePips: 0.3,
     status: 'COPIED',
   },
   {
@@ -192,7 +154,7 @@ export default function TradeCopier() {
   const { accounts } = usePropAccountsContext();
 
   const [engineOnline, setEngineOnline] = useState<boolean>(true);
-  const [selectedMasterId, setSelectedMasterId] = useState<string>('acc-icmarkets-live');
+  const [selectedMasterId, setSelectedMasterId] = useState<string>('acc-fp-50k-phase1');
   const [openPositions, setOpenPositions] = useState<OpenPosition[]>(INITIAL_OPEN_POSITIONS);
   const [slaves, setSlaves] = useState<SlaveAccountConfig[]>(INITIAL_SLAVES);
   const [logs, setLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
@@ -210,18 +172,11 @@ export default function TradeCopier() {
     }
     return [
       {
-        id: 'acc-icmarkets-live',
-        label: 'IC Markets Raw ECN (#91823411)',
-        platform: 'cTrader',
-        broker: 'IC Markets',
-        balance: 11480.0,
-      },
-      {
         id: 'acc-fp-50k-phase1',
         label: 'FundingPips $50k Evaluation (#20823275)',
-        platform: 'cTrader',
+        platform: 'MetaTrader 5',
         broker: 'FundingPips',
-        balance: 52340.5,
+        balance: 50000.0,
       },
     ];
   }, [accounts]);
