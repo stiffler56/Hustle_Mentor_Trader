@@ -23,6 +23,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   onAdvancePhase,
 }) => {
   const [name, setName] = useState(account?.name || '');
+  const [accountMode, setAccountMode] = useState<'real' | 'demo'>(account?.accountMode || 'real');
   const [accountNumber, setAccountNumber] = useState(account?.accountNumber || '');
   const [provider, setProvider] = useState(account?.provider || '');
   const [currentBalance, setCurrentBalance] = useState(account?.currentBalance || 0);
@@ -39,6 +40,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   useEffect(() => {
     if (account) {
       setName(account.name);
+      setAccountMode(account.accountMode || (account.connection?.syncStatus === 'connected' ? 'real' : 'demo'));
       setAccountNumber(account.accountNumber);
       setProvider(account.provider);
       setCurrentBalance(account.currentBalance);
@@ -79,7 +81,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
       platform: account.connection?.platform || (account.platform === 'MetaTrader 4' ? ('MT4' as const) : ('MT5' as const)),
       login: accountNumber.replace('#', '').trim(),
       investorPassword: investorPassword.trim(),
-      server: serverType.trim() || account.connection?.server || 'ICMarketsSC-Live01',
+      server: serverType.trim() || account.connection?.server || 'FundingPips-Server',
       syncStatus: account.connection?.syncStatus || ('connected' as const),
       lastSyncedAt: account.connection?.lastSyncedAt,
       autoSyncIntervalSec: account.connection?.autoSyncIntervalSec || 30,
@@ -88,6 +90,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
 
     onUpdate(account.id, {
       name,
+      accountMode,
       accountNumber,
       provider,
       serverType,
@@ -181,6 +184,40 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
               <span>Delete</span>
             </button>
           </div>
+
+          {/* Account Mode Switcher (Real vs Demo) */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">
+              Account Division (Real vs Demo)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAccountMode('real')}
+                className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                  accountMode === 'real'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-xs'
+                    : 'bg-[#0F1013] text-[#8E95A5] border-[#1E2026] hover:text-white'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>🟢 Real Account</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountMode('demo')}
+                className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                  accountMode === 'demo'
+                    ? 'bg-purple-500/15 text-purple-400 border-purple-500/40 shadow-xs'
+                    : 'bg-[#0F1013] text-[#8E95A5] border-[#1E2026] hover:text-white'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                <span>🟣 Demo / Simulated</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs uppercase tracking-wider text-slate-700 font-bold mb-1.5">

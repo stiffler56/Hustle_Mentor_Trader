@@ -50,6 +50,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [progressMsg, setProgressMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
     setLoading(true);
     setError('');
     setSuccess('');
+    setProgressMsg('Initiating connection...');
 
     try {
       const data = await requestBrokerConnect({
@@ -105,6 +107,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
         accountId: account.id,
         accessToken,
         metaApiToken: metaApiToken.trim(),
+        onProgress: (msg) => setProgressMsg(msg),
       });
 
       const connectionConfig: InvestorConnectionConfig = {
@@ -122,6 +125,8 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
 
       const updatedAccount: Account = {
         ...account,
+        accountNumber: `#${login.trim()}`,
+        serverType: server.trim(),
         connection: connectionConfig,
         isAutoSyncEnabled,
         currentBalance: data.balance ?? account.currentBalance,
@@ -129,25 +134,26 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
       };
 
       onUpdateAccount(account.id, {
+        accountNumber: `#${login.trim()}`,
+        serverType: server.trim(),
         connection: connectionConfig,
         isAutoSyncEnabled,
         currentBalance: updatedAccount.currentBalance,
         currentEquity: updatedAccount.currentEquity,
       });
 
-      const syncResult = await syncBrokerAccount(updatedAccount);
-
       setSuccess(
-        `Connected to ${server}! Synced ${syncResult?.newTradesCount || 0} real trades.`
+        `Connected to ${server} (#${login.trim()})! Synced ${data.tradesCount ?? 0} real deals and ${data.openPositionsCount ?? 0} open positions.`
       );
 
       setTimeout(() => {
         onClose();
-      }, 1400);
+      }, 1600);
     } catch (err: any) {
       setError(err.message || 'Connection failed. Please verify credentials.');
     } finally {
       setLoading(false);
+      setProgressMsg('');
     }
   };
 
@@ -285,6 +291,13 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
               </div>
             )}
 
+            {loading && progressMsg && (
+              <div className="p-3 bg-[#181A20] border border-[#6366F1]/40 rounded-xl text-white flex items-center gap-2.5">
+                <RefreshCw size={15} className="text-[#6366F1] animate-spin shrink-0" />
+                <span className="leading-snug font-medium text-xs text-[#E2E8F0]">{progressMsg}</span>
+              </div>
+            )}
+
             {/* Platform Choice */}
             <div>
               <label className="block font-bold text-[#8E95A5] uppercase tracking-wider text-[10px] mb-1.5">
@@ -336,7 +349,7 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
                 className="w-full px-3.5 py-2.5 bg-[#0F1013] border border-[#1E2026] rounded-xl text-white font-medium focus:border-[#6366F1] outline-none transition-all"
               />
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {['FundingPips-SIM1', 'FundingPips-Server', 'FundingPips-Demo', 'ICMarketsSC-Live01', 'FTMO-Server'].map(preset => (
+                {['FundingPips-Server', 'FundingPips-SIM1', 'FundingPips-Demo'].map(preset => (
                   <button
                     type="button"
                     key={preset}
@@ -389,7 +402,10 @@ export const BrokerSyncModal: React.FC<BrokerSyncModalProps> = ({
               <input
                 type="password"
                 value={metaApiToken}
-                onChange={e => setMetaApiToken(e.target.value)}
+                onChange={e => {
+                  setMetaApiToken(e.target.value);
+                  localStorage.setItem('metaapi_token', e.target.value.trim());
+                }}
                 placeholder="Paste token from app.metaapi.cloud/token"
                 className="w-full px-3 py-2 bg-[#131418] border border-[#1E2026] rounded-xl text-white font-mono text-xs focus:border-[#6366F1] outline-none"
               />

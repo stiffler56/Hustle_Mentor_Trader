@@ -18,6 +18,9 @@ import {
   Layers,
   Zap,
   RefreshCw,
+  Sliders,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { useAccountsContext } from '../data/PropAccountsContext';
 import { useTradesContext } from '../data/TradesContext';
@@ -32,7 +35,7 @@ import { EditAccountModal } from '../components/prop-firm/EditAccountModal';
 import { QuickTradeModal } from '../components/prop-firm/QuickTradeModal';
 import { BrokerSyncModal } from '../components/prop-firm/BrokerSyncModal';
 
-type FilterTab = 'ALL' | 'PROP' | 'BROKER';
+type FilterTab = 'ALL' | 'REAL' | 'DEMO';
 
 export default function AccountsPage() {
   const {
@@ -45,6 +48,7 @@ export default function AccountsPage() {
     deleteAccount,
     resetAccount,
     advancePhase,
+    clearAllPreviousData,
     accountTrades,
   } = useAccountsContext();
 
@@ -93,12 +97,13 @@ export default function AccountsPage() {
     });
   };
 
-  // Filter accounts for left master list
+  // Filter accounts for left master list (Divided into Real vs Demo)
   const filteredAccounts = useMemo(() => {
     return accounts.filter(acc => {
+      const mode = acc.accountMode || (acc.connection?.syncStatus === 'connected' || acc.name?.toLowerCase().includes('real') ? 'real' : 'demo');
       // Tab filter
-      if (filterTab === 'PROP' && !acc.category.startsWith('prop')) return false;
-      if (filterTab === 'BROKER' && !acc.category.startsWith('broker')) return false;
+      if (filterTab === 'REAL' && mode !== 'real') return false;
+      if (filterTab === 'DEMO' && mode !== 'demo') return false;
 
       // Search filter
       if (!searchQuery.trim()) return true;
@@ -274,7 +279,25 @@ export default function AccountsPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Delete all previous data, remove fake trades, and reset clean slate?')) {
+                    clearAllPreviousData();
+                  }
+                }}
+                title="Wipe previous data and start fresh"
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  isDayMode
+                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                    : 'bg-rose-950/30 hover:bg-rose-900/40 text-rose-400 border-rose-900/40'
+                }`}
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+
               <button
                 onClick={() => setIsNewAccountOpen(true)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#5D5FEF] hover:bg-[#4F51D8] shadow-xs transition-all cursor-pointer"
@@ -308,12 +331,12 @@ export default function AccountsPage() {
             />
           </div>
 
-          {/* Filter Tabs */}
+          {/* Filter Tabs - Divided into Real vs Demo */}
           <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${isDayMode ? 'bg-[#F2F1EF] border-[#E5E4E2]' : 'bg-[#0F1013] border-[#1E2026]'}`}>
             {[
-              { id: 'ALL', label: 'All' },
-              { id: 'PROP', label: 'Prop Challenges' },
-              { id: 'BROKER', label: 'Live Brokers' },
+              { id: 'ALL', label: 'All Accounts' },
+              { id: 'REAL', label: '🟢 Real' },
+              { id: 'DEMO', label: '🟣 Demo' },
             ].map(tab => {
               const isTabActive = filterTab === tab.id;
               return (
@@ -395,6 +418,15 @@ export default function AccountsPage() {
                           <h4 className={`text-xs font-bold truncate group-hover:text-[#5D5FEF] transition-colors ${textPrimary}`}>
                             {acc.name}
                           </h4>
+                          {acc.accountMode === 'real' ? (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                              REAL
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/30 shrink-0">
+                              DEMO
+                            </span>
+                          )}
                         </div>
                         <span className={`text-[11px] font-mono ${textSecondary}`}>
                           {acc.accountNumber}
@@ -417,8 +449,7 @@ export default function AccountsPage() {
                   {/* Subtitle: Category & Platform */}
                   <div className={`flex items-center gap-1.5 text-[11px] font-medium mb-2.5 truncate ${textSecondary}`}>
                     <span className="truncate">
-                      {acc.serverType ? `${acc.serverType} • ` : ''}${acc.platform}
-                      {isChallenge && acc.propDetails ? ` • ${acc.propDetails.modelType}` : ''}
+                      {acc.accountMode === 'real' ? '🟢 Live Server' : '🟣 Simulated'} • {acc.serverType || acc.platform}
                     </span>
                     {acc.connection?.syncStatus === 'connected' && (
                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 ${
@@ -511,6 +542,17 @@ export default function AccountsPage() {
                   <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${isDayMode ? 'bg-[#F2F1EF] text-[#5D5FEF] border-[#E5E4E2]' : 'bg-[#0F1013] text-[#6366F1] border-[#1E2026]'}`}>
                     {selectedAccount.accountNumber}
                   </span>
+                  {selectedAccount.accountMode === 'real' ? (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Real Live Server</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                      <span>Demo Practice</span>
+                    </span>
+                  )}
                   <span
                     className="text-xs px-2.5 py-0.5 rounded-full font-bold"
                     style={{
@@ -610,6 +652,51 @@ export default function AccountsPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Demo Practice Control Banner (only for demo accounts) ── */}
+        {selectedAccount.accountMode === 'demo' && (
+          <div className="p-4 rounded-xl border bg-purple-500/10 border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
+                <Sliders size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-white text-xs">
+                    Simulated Demo Challenge • {selectedAccount.provider}
+                  </span>
+                  <span className="px-2 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                    PRACTICE
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#8E95A5] font-medium mt-0.5">
+                  Starting Balance: <strong className="text-white">${selectedAccount.initialBalance.toLocaleString()}</strong> • Freely test setups and risk management without risking real capital.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Reset this demo balance back to starting capital?')) {
+                    resetAccount(selectedAccount.id);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-xs transition-all cursor-pointer"
+              >
+                Reset Demo Money
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditAccountOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-[#8E95A5] hover:text-white border border-[#1E2026] hover:bg-[#181A20] transition-all cursor-pointer"
+              >
+                Change Money / Rules
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── MT4 / MT5 Investor Sync Ribbon ── */}
         <div

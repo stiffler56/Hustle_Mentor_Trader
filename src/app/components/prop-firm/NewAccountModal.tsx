@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
-import { X, Building2, Check, ShieldCheck, Globe } from 'lucide-react';
+import {
+  X,
+  Building2,
+  Check,
+  ShieldCheck,
+  Globe,
+  Zap,
+  Sliders,
+  DollarSign,
+  HelpCircle,
+  Sparkles,
+  Server,
+  Layers,
+} from 'lucide-react';
 import {
   PROVIDER_PRESETS,
   type Account,
@@ -7,6 +20,7 @@ import {
   type AccountStatus,
   type TradingPlatform,
   type PropPhase,
+  type ProviderPreset,
 } from '../../data/accountTypes';
 
 interface NewAccountModalProps {
@@ -20,104 +34,108 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
   onClose,
   onAddAccount,
 }) => {
-  const [category, setCategory] = useState<AccountCategory>('prop_evaluation');
-  const [selectedPresetId, setSelectedPresetId] = useState('fundingpips-2step');
-  const [name, setName] = useState('FundingPips $50k Evaluation');
+  // ── Primary Division: Real Account vs Demo Account ───────────────────────
+  const [accountMode, setAccountMode] = useState<'real' | 'demo'>('real');
+
+  // Shared / Form state
+  const [name, setName] = useState('FundingPips Real $50k');
   const [provider, setProvider] = useState('FundingPips');
-  const [platform, setPlatform] = useState<TradingPlatform>('cTrader');
-  const [serverType, setServerType] = useState('FundingPips-Demo');
+  const [category, setCategory] = useState<AccountCategory>('prop_evaluation');
+  const [platform, setPlatform] = useState<TradingPlatform>('MetaTrader 5');
+  const [serverType, setServerType] = useState('FundingPips-Server');
   const [initialBalance, setInitialBalance] = useState<number>(50000);
+  const [customBalanceInput, setCustomBalanceInput] = useState<string>('50000');
+  const [isCustomBalance, setIsCustomBalance] = useState(false);
+
+  // Prop rules
   const [phase, setPhase] = useState<PropPhase>('Phase 1');
   const [modelType, setModelType] = useState('2-Step Evaluation');
   const [profitTargetPct, setProfitTargetPct] = useState<number>(8);
   const [dailyDrawdownLimitPct, setDailyDrawdownLimitPct] = useState<number>(5);
   const [maxDrawdownLimitPct, setMaxDrawdownLimitPct] = useState<number>(10);
   const [minTradingDays, setMinTradingDays] = useState<number>(0);
+
+  // Real connection details
   const [accountNumber, setAccountNumber] = useState(() => `#${Math.floor(10000000 + Math.random() * 90000000)}`);
-  const [notes, setNotes] = useState('');
   const [investorPassword, setInvestorPassword] = useState('');
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(true);
+  const [notes, setNotes] = useState('');
+
+  // Selected Demo Preset
+  const [selectedDemoPresetId, setSelectedDemoPresetId] = useState('ftmo-demo');
 
   if (!isOpen) return null;
 
-  const handleCategoryChange = (newCat: AccountCategory) => {
-    setCategory(newCat);
-    if (newCat === 'prop_evaluation') {
-      const preset = PROVIDER_PRESETS.find(p => p.id === 'fundingpips-2step');
-      if (preset) applyPreset(preset, newCat);
-    } else if (newCat === 'prop_funded') {
-      const preset = PROVIDER_PRESETS.find(p => p.id === 'fundingpips-2step');
-      if (preset) {
-        applyPreset(preset, newCat);
-        setPhase('Master');
-        setProfitTargetPct(0);
-      }
-    } else if (newCat === 'broker_live') {
-      const preset = PROVIDER_PRESETS.find(p => p.id === 'ic-markets-live');
-      if (preset) applyPreset(preset, newCat);
-    } else if (newCat === 'broker_demo') {
-      const preset = PROVIDER_PRESETS.find(p => p.id === 'custom-account');
-      if (preset) applyPreset(preset, newCat);
-    }
-  };
-
-  const applyPreset = (preset: typeof PROVIDER_PRESETS[0], catOverride?: AccountCategory) => {
-    setSelectedPresetId(preset.id);
-    const cat = catOverride || preset.category;
-    setCategory(cat);
-    setProvider(preset.name);
-    setPlatform(preset.defaultPlatform);
-    setServerType(preset.serverTypes[0] || 'Standard');
-    const defaultSz = preset.defaultSizes[2] || preset.defaultSizes[0] || 50000;
-    setInitialBalance(defaultSz);
-    setName(`${preset.name} $${(defaultSz / 1000).toFixed(0)}k ${cat.startsWith('prop') ? 'Evaluation' : 'Account'}`);
-
-    if (preset.propConfig) {
-      setModelType(preset.propConfig.modelType);
-      const firstPhase = preset.propConfig.phases[0];
-      if (firstPhase) {
-        setPhase(firstPhase.phase);
-        setProfitTargetPct(firstPhase.profitTargetPct);
-        setDailyDrawdownLimitPct(firstPhase.dailyDrawdownLimitPct);
-        setMaxDrawdownLimitPct(firstPhase.maxDrawdownLimitPct);
-        setMinTradingDays(firstPhase.minTradingDays);
-      }
-    }
-  };
-
-  const handlePresetSelect = (presetId: string) => {
-    const preset = PROVIDER_PRESETS.find(p => p.id === presetId);
-    if (preset) applyPreset(preset);
-  };
-
-  const handlePhaseChange = (newPhase: PropPhase) => {
-    setPhase(newPhase);
-    const preset = PROVIDER_PRESETS.find(p => p.id === selectedPresetId);
-    const phaseConfig = preset?.propConfig?.phases.find(p => p.phase === newPhase);
-
-    if (phaseConfig) {
-      setProfitTargetPct(phaseConfig.profitTargetPct);
-      setDailyDrawdownLimitPct(phaseConfig.dailyDrawdownLimitPct);
-      setMaxDrawdownLimitPct(phaseConfig.maxDrawdownLimitPct);
-      setMinTradingDays(phaseConfig.minTradingDays);
-    } else if (newPhase === 'Phase 1') {
+  // ── Mode Switcher Handlers ───────────────────────────────────────────────
+  const handleSwitchMode = (mode: 'real' | 'demo') => {
+    setAccountMode(mode);
+    if (mode === 'real') {
+      setName('FundingPips Real $50k');
+      setProvider('FundingPips');
+      setPlatform('MetaTrader 5');
+      setServerType('FundingPips-Server');
+      setInitialBalance(50000);
+      setCustomBalanceInput('50000');
+      setIsCustomBalance(false);
       setProfitTargetPct(8);
       setDailyDrawdownLimitPct(5);
       setMaxDrawdownLimitPct(10);
-    } else if (newPhase === 'Phase 2') {
-      setProfitTargetPct(5);
-      setDailyDrawdownLimitPct(5);
-      setMaxDrawdownLimitPct(10);
-    } else if (newPhase === 'Master' || newPhase === 'Funded') {
-      setProfitTargetPct(0);
-      setDailyDrawdownLimitPct(5);
-      setMaxDrawdownLimitPct(10);
+      setModelType('2-Step Evaluation');
+      setCategory('prop_evaluation');
+    } else {
+      // Demo preset
+      const preset = PROVIDER_PRESETS.find(p => p.id === 'ftmo-demo') || PROVIDER_PRESETS[1];
+      if (preset) applyPreset(preset);
+    }
+  };
+
+  const applyPreset = (preset: ProviderPreset) => {
+    setSelectedDemoPresetId(preset.id);
+    setProvider(preset.name.replace(' Demo', ''));
+    setPlatform(preset.defaultPlatform);
+    setServerType(preset.serverTypes[0] || 'Demo Server');
+    const sz = preset.defaultSizes[2] || preset.defaultSizes[0] || 100000;
+    setInitialBalance(sz);
+    setCustomBalanceInput(String(sz));
+    setIsCustomBalance(false);
+    setName(`${preset.name} $${(sz / 1000).toFixed(0)}k Practice`);
+    setCategory(preset.category);
+
+    if (preset.propConfig) {
+      setModelType(preset.propConfig.modelType);
+      const first = preset.propConfig.phases[0];
+      if (first) {
+        setPhase(first.phase);
+        setProfitTargetPct(first.profitTargetPct);
+        setDailyDrawdownLimitPct(first.dailyDrawdownLimitPct);
+        setMaxDrawdownLimitPct(first.maxDrawdownLimitPct);
+        setMinTradingDays(first.minTradingDays);
+      }
     }
   };
 
   const handleSizeSelect = (sz: number) => {
     setInitialBalance(sz);
-    setName(`${provider} $${(sz / 1000).toFixed(0)}k ${category.startsWith('prop') ? 'Evaluation' : 'Account'}`);
+    setCustomBalanceInput(String(sz));
+    setIsCustomBalance(false);
+    setName(
+      accountMode === 'real'
+        ? `${provider} Real $${(sz / 1000).toFixed(0)}k`
+        : `${provider} Demo $${(sz / 1000).toFixed(0)}k Practice`
+    );
+  };
+
+  const handleCustomBalanceChange = (valStr: string) => {
+    setCustomBalanceInput(valStr);
+    const parsed = parseFloat(valStr.replace(/[^0-9.]/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      setInitialBalance(parsed);
+      setName(
+        accountMode === 'real'
+          ? `${provider} Real $${(parsed / 1000).toFixed(0)}k`
+          : `${provider} Demo $${(parsed / 1000).toFixed(0)}k Practice`
+      );
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,22 +144,26 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
     const isProp = category.startsWith('prop');
     const status: AccountStatus = isProp ? 'Ongoing' : 'Active';
 
-    const connection = investorPassword.trim() ? {
-      platform: platform === 'MetaTrader 4' ? ('MT4' as const) : ('MT5' as const),
-      login: accountNumber.replace('#', '').trim(),
-      investorPassword: investorPassword.trim(),
-      server: serverType.trim() || 'ICMarketsSC-Live01',
-      syncStatus: 'connected' as const,
-      autoSyncIntervalSec: 30,
-    } : undefined;
+    const connection =
+      accountMode === 'real' && investorPassword.trim()
+        ? {
+            platform: platform === 'MetaTrader 4' ? ('MT4' as const) : ('MT5' as const),
+            login: accountNumber.replace('#', '').trim(),
+            investorPassword: investorPassword.trim(),
+            server: serverType.trim() || 'FundingPips-Server',
+            syncStatus: 'connected' as const,
+            autoSyncIntervalSec: 30,
+          }
+        : undefined;
 
     onAddAccount({
       accountNumber: accountNumber.startsWith('#') ? accountNumber : `#${accountNumber}`,
       name: name.trim() || `${provider} Account`,
+      accountMode,
       category,
-      provider: provider.trim() || 'Custom',
+      provider: provider.trim() || (accountMode === 'real' ? 'FundingPips' : 'Simulated'),
       platform,
-      serverType,
+      serverType: serverType.trim() || (accountMode === 'real' ? 'FundingPips-Server' : 'Demo Server'),
       initialBalance,
       currentBalance: initialBalance,
       currentEquity: initialBalance,
@@ -155,20 +177,22 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
         stopLossUsagePct: 100,
         winRate: 65,
       },
-      propDetails: isProp ? {
-        modelType,
-        phase,
-        profitTargetPct: phase === 'Master' || phase === 'Funded' ? 0 : profitTargetPct,
-        dailyDrawdownLimitPct,
-        maxDrawdownLimitPct,
-        minTradingDays,
-        tradingDaysLogged: 0,
-        consistencyRulePct: 33,
-        profitSplitPct: 85,
-        currentDailyLoss: 0,
-        currentMaxDrawdown: 0,
-      } : undefined,
-      notes,
+      propDetails: isProp
+        ? {
+            modelType,
+            phase,
+            profitTargetPct: phase === 'Master' || phase === 'Funded' ? 0 : profitTargetPct,
+            dailyDrawdownLimitPct,
+            maxDrawdownLimitPct,
+            minTradingDays,
+            tradingDaysLogged: 0,
+            consistencyRulePct: 33,
+            profitSplitPct: 85,
+            currentDailyLoss: 0,
+            currentMaxDrawdown: 0,
+          }
+        : undefined,
+      notes: notes.trim() || (accountMode === 'real' ? 'Real account with live server sync' : 'Simulated demo practice account'),
       isBreached: false,
       connection,
       isAutoSyncEnabled: Boolean(connection && isAutoSyncEnabled),
@@ -177,129 +201,256 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
     onClose();
   };
 
-  const isProp = category.startsWith('prop');
-  const currentPreset = PROVIDER_PRESETS.find(p => p.id === selectedPresetId);
-  const sizeOptions = currentPreset?.defaultSizes || [5000, 10000, 25000, 50000, 100000, 200000];
+  const quickSizes = [5000, 10000, 25000, 50000, 100000, 200000, 300000];
+  const demoPresets = PROVIDER_PRESETS.filter(p => p.accountMode === 'demo');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-xl rounded-2xl p-6 relative my-8 bg-[#131418] border border-[#1E2026] text-white shadow-2xl"
-      >
+      <div className="w-full max-w-xl rounded-2xl p-6 relative my-8 bg-[#131418] border border-[#1E2026] text-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#1E2026]">
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#1E2026]">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#181A20] border border-[#1E2026] text-[#6366F1]">
               <Building2 size={20} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Add Account</h3>
-              <p className="text-xs text-[#8E95A5] font-medium">Create a new evaluation challenge, funded account, or personal broker account</p>
+              <h3 className="text-base font-extrabold text-white">Generate Trading Account</h3>
+              <p className="text-xs text-[#8E95A5] font-medium">
+                Choose between a Live Server connection or a Simulated Demo challenge
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-[#8E95A5] hover:text-white p-1.5 rounded-lg hover:bg-[#181A20] transition-colors"
+            className="text-[#8E95A5] hover:text-white p-1.5 rounded-lg hover:bg-[#181A20] transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Account Category Selector */}
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-2">
-              Account Type
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { id: 'prop_evaluation', label: 'Prop Evaluation', icon: ShieldCheck },
-                { id: 'prop_funded', label: 'Prop Funded', icon: Building2 },
-                { id: 'broker_live', label: 'Broker Live', icon: Globe },
-                { id: 'broker_demo', label: 'Broker Demo', icon: Globe },
-              ].map(cat => {
-                const isSelected = category === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => handleCategoryChange(cat.id as AccountCategory)}
-                    className="p-2.5 rounded-xl text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer"
-                    style={{
-                      background: isSelected ? '#181A20' : '#0F1013',
-                      color: isSelected ? '#FFFFFF' : '#8E95A5',
-                      border: `1.5px solid ${isSelected ? '#6366F1' : '#1E2026'}`,
-                      fontWeight: isSelected ? 700 : 500,
-                    }}
-                  >
-                    <cat.icon size={15} className={isSelected ? 'text-[#6366F1]' : 'text-[#8E95A5]'} />
-                    <span className="text-[11px] leading-tight">{cat.label}</span>
-                  </button>
-                );
-              })}
+        {/* ── PART 1: Top Mode Division Switcher (Real vs Demo) ── */}
+        <div className="grid grid-cols-2 gap-3 mb-5 p-1 bg-[#0F1013] rounded-2xl border border-[#1E2026]">
+          {/* Real Account Choice */}
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('real')}
+            className={`p-3.5 rounded-xl text-left transition-all relative flex items-start gap-3 cursor-pointer ${
+              accountMode === 'real'
+                ? 'bg-[#181A20] border border-emerald-500/50 shadow-xs'
+                : 'border border-transparent hover:bg-[#181A20]/50 opacity-70'
+            }`}
+          >
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+              <Zap size={16} />
             </div>
-          </div>
-
-          {/* Preset Picker */}
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-2">
-              Template Preset
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {PROVIDER_PRESETS.map(preset => {
-                const isSelected = selectedPresetId === preset.id;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => handlePresetSelect(preset.id)}
-                    className="p-3 rounded-xl text-left transition-all relative overflow-hidden cursor-pointer"
-                    style={{
-                      background: isSelected ? '#181A20' : '#0F1013',
-                      border: `1.5px solid ${isSelected ? '#6366F1' : '#1E2026'}`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{preset.name}</span>
-                      {isSelected && <Check size={14} className="text-[#6366F1] font-bold" />}
-                    </div>
-                    <span className="text-[11px] text-[#8E95A5] font-medium block mt-0.5 truncate">
-                      {preset.defaultPlatform} • {preset.serverTypes[0]}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Account Capital */}
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-2">
-              Account Capital / Starting Balance
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {sizeOptions.map(sz => (
-                <button
-                  key={sz}
-                  type="button"
-                  onClick={() => handleSizeSelect(sz)}
-                  className="py-2.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
-                  style={{
-                    background: initialBalance === sz ? '#6366F1' : '#0F1013',
-                    color: '#ffffff',
-                    border: `1.5px solid ${initialBalance === sz ? '#6366F1' : '#1E2026'}`,
-                  }}
-                >
-                  ${(sz / 1000).toFixed(0)}k
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Account Name & Login # */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-white">Real Account</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  Live Server
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8E95A5] font-medium mt-0.5 leading-snug">
+                Connects real MT5 / broker server. Pulls live balance & deals.
+              </p>
+            </div>
+          </button>
+
+          {/* Demo Account Choice */}
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('demo')}
+            className={`p-3.5 rounded-xl text-left transition-all relative flex items-start gap-3 cursor-pointer ${
+              accountMode === 'demo'
+                ? 'bg-[#181A20] border border-purple-500/50 shadow-xs'
+                : 'border border-transparent hover:bg-[#181A20]/50 opacity-70'
+            }`}
+          >
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+              <Sliders size={16} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-white">Demo / Practice</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  Simulated
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8E95A5] font-medium mt-0.5 leading-snug">
+                Pick fake prop firms & custom money to test your strategy freely.
+              </p>
+            </div>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ── PART 2: REAL ACCOUNT SPECIFICS ── */}
+          {accountMode === 'real' ? (
+            <div className="space-y-4 p-4 rounded-xl bg-[#0F1013] border border-[#1E2026]">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                <Server size={14} />
+                <span>Real Server Connection Settings</span>
+              </div>
+
+              {/* Server Name Presets & Custom Server */}
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
+                  Broker / Prop Server Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={serverType}
+                  onChange={e => setServerType(e.target.value)}
+                  placeholder="e.g. FundingPips-Server, FundingPips-SIM1"
+                  className="w-full rounded-xl px-3.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-white font-medium focus:border-emerald-500 outline-none"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {['FundingPips-Server', 'FundingPips-SIM1', 'FundingPips-Demo'].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setServerType(preset)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all cursor-pointer ${
+                        serverType === preset
+                          ? 'bg-emerald-500 text-slate-900 font-bold'
+                          : 'bg-[#181A20] text-[#8E95A5] border border-[#1E2026] hover:text-white'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Real Account Number & Investor Password */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
+                    Real Login / Account Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={accountNumber}
+                    onChange={e => setAccountNumber(e.target.value)}
+                    placeholder="e.g. 20823275"
+                    className="w-full rounded-xl px-3.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-white font-mono font-bold focus:border-emerald-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
+                    Read-Only Investor Password
+                  </label>
+                  <input
+                    type="password"
+                    value={investorPassword}
+                    onChange={e => setInvestorPassword(e.target.value)}
+                    placeholder="Enter investor password"
+                    className="w-full rounded-xl px-3.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-white font-mono outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Live Info Banner */}
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px]">
+                <ShieldCheck size={15} className="shrink-0 mt-0.5" />
+                <span>
+                  Uses read-only investor credentials. Orders cannot be opened or closed, only past trades and balance are read.
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* ── PART 3: DEMO ACCOUNT SPECIFICS (Fake Prop Firms & Custom Money) ── */
+            <div className="space-y-4 p-4 rounded-xl bg-[#0F1013] border border-[#1E2026]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders size={14} />
+                  <span>Select Fake / Simulated Prop Firm</span>
+                </span>
+              </div>
+
+              {/* Fake Prop Firm Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {demoPresets.map(preset => {
+                  const isSelected = selectedDemoPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className={`p-2.5 rounded-xl text-left transition-all border cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#181A20] border-purple-500 text-white shadow-xs'
+                          : 'bg-[#131418] border-[#1E2026] text-[#8E95A5] hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">{preset.name.replace(' Demo', '')}</span>
+                        {isSelected && <Check size={12} className="text-purple-400" />}
+                      </div>
+                      <span className="text-[10px] text-[#8E95A5] block mt-0.5 truncate">
+                        {preset.propConfig?.modelType || 'Simulated Rules'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── SET MONEY / STARTING CAPITAL (Customizable for Demo and Real) ── */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold">
+                {accountMode === 'demo' ? 'Set Demo Money / Starting Capital' : 'Account Balance / Size'}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsCustomBalance(!isCustomBalance)}
+                className="text-[11px] font-bold text-[#6366F1] hover:underline cursor-pointer"
+              >
+                {isCustomBalance ? 'Choose Preset' : '+ Type Custom Money'}
+              </button>
+            </div>
+
+            {isCustomBalance ? (
+              <div className="relative">
+                <input
+                  type="number"
+                  step="1000"
+                  min="500"
+                  value={customBalanceInput}
+                  onChange={e => handleCustomBalanceChange(e.target.value)}
+                  placeholder="Enter any amount (e.g. 15000, 300000)"
+                  className="w-full pl-8 pr-4 py-2.5 rounded-xl text-xs bg-[#0F1013] border border-[#6366F1] text-white font-mono font-bold focus:outline-none"
+                />
+                <DollarSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6366F1]" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                {quickSizes.map(sz => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => handleSizeSelect(sz)}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                      initialBalance === sz
+                        ? 'bg-[#6366F1] text-white shadow-xs font-black'
+                        : 'bg-[#0F1013] text-[#8E95A5] border border-[#1E2026] hover:text-white'
+                    }`}
+                  >
+                    ${(sz / 1000).toFixed(0)}k
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Account Label & Display Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
                 Account Label / Name
               </label>
               <input
@@ -307,180 +458,104 @@ export const NewAccountModal: React.FC<NewAccountModalProps> = ({
                 required
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="FundingPips $50k Evaluation"
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-bold focus:border-[#6366F1] outline-none"
+                placeholder="Account Name"
+                className="w-full rounded-xl px-3.5 py-2 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-bold focus:border-[#6366F1] outline-none"
               />
             </div>
-
             <div>
-              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1.5">
-                Account Login # / ID
-              </label>
-              <input
-                type="text"
-                required
-                value={accountNumber}
-                onChange={e => setAccountNumber(e.target.value)}
-                placeholder="#20823275"
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-mono font-bold focus:border-[#6366F1] outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Prop Firm Specific Rules */}
-          {isProp && (
-            <div className="p-4 rounded-xl bg-[#0F1013] border border-[#1E2026] space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#6366F1]">
-                  Prop Evaluation Rules
-                </span>
-                <select
-                  value={phase}
-                  onChange={e => handlePhaseChange(e.target.value as PropPhase)}
-                  className="rounded-lg px-2 py-1 text-xs bg-[#131418] border border-[#1E2026] text-[#6366F1] font-bold outline-none"
-                >
-                  <option value="Phase 1">Phase 1</option>
-                  <option value="Phase 2">Phase 2</option>
-                  <option value="Master">Master / Funded</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#8E95A5] mb-1">
-                    Profit Target (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={phase === 'Master' || phase === 'Funded' ? 0 : profitTargetPct}
-                    disabled={phase === 'Master' || phase === 'Funded'}
-                    onChange={e => setProfitTargetPct(Number(e.target.value))}
-                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-[#10B981] font-bold disabled:opacity-40 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#8E95A5] mb-1">
-                    Daily DD Limit (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={dailyDrawdownLimitPct}
-                    onChange={e => setDailyDrawdownLimitPct(Number(e.target.value))}
-                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-[#F87171] font-bold outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#8E95A5] mb-1">
-                    Max DD Limit (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={maxDrawdownLimitPct}
-                    onChange={e => setMaxDrawdownLimitPct(Number(e.target.value))}
-                    className="w-full rounded-lg px-2.5 py-2 text-xs bg-[#131418] border border-[#1E2026] text-[#F87171] font-bold outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Platform & Server */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1.5">
+              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
                 Trading Platform
               </label>
               <select
                 value={platform}
                 onChange={e => setPlatform(e.target.value as TradingPlatform)}
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-semibold focus:border-[#6366F1] outline-none"
+                className="w-full rounded-xl px-3 py-2 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-semibold focus:border-[#6366F1] outline-none"
               >
-                <option value="cTrader">cTrader</option>
                 <option value="MetaTrader 5">MetaTrader 5</option>
                 <option value="MetaTrader 4">MetaTrader 4</option>
+                <option value="cTrader">cTrader</option>
                 <option value="TradeLocker">TradeLocker</option>
                 <option value="TradingView">TradingView</option>
-                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Prop Rules / Challenge Rules (Editable for Demo) */}
+          <div className="p-3.5 rounded-xl bg-[#0F1013] border border-[#1E2026] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#6366F1]">
+                {accountMode === 'demo' ? 'Simulated Challenge Rules' : 'Evaluation Rules'}
+              </span>
+              <select
+                value={phase}
+                onChange={e => setPhase(e.target.value as PropPhase)}
+                className="rounded-lg px-2 py-0.5 text-xs bg-[#181A20] border border-[#1E2026] text-[#6366F1] font-bold outline-none"
+              >
+                <option value="Phase 1">Phase 1</option>
+                <option value="Phase 2">Phase 2</option>
+                <option value="Master">Master / Funded</option>
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1.5">
-                Server / Execution Type
-              </label>
-              <input
-                type="text"
-                value={serverType}
-                onChange={e => setServerType(e.target.value)}
-                placeholder="Raw Spread / Live Server"
-                className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-semibold focus:border-[#6366F1] outline-none"
-              />
-            </div>
-          </div>
-
-          {/* MT4 / MT5 Investor Sync */}
-          {(platform === 'MetaTrader 4' || platform === 'MetaTrader 5') && (
-            <div className="p-3.5 bg-[#181A20] rounded-xl border border-[#1E2026] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">
-                  Automated Investor Password Sync (Read-Only)
-                </span>
-                <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#6366F1] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAutoSyncEnabled}
-                    onChange={e => setIsAutoSyncEnabled(e.target.checked)}
-                    className="rounded text-[#6366F1] w-3.5 h-3.5"
-                  />
-                  <span>Auto-Sync</span>
-                </label>
-              </div>
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-[#8E95A5] font-bold mb-1">
-                  Read-Only Investor Password (Optional)
+                <label className="block text-[10px] font-semibold text-[#8E95A5] mb-0.5">
+                  Profit Target (%)
                 </label>
                 <input
-                  type="password"
-                  value={investorPassword}
-                  onChange={e => setInvestorPassword(e.target.value)}
-                  placeholder="Enter investor password for automated background sync"
-                  className="w-full rounded-lg px-3 py-2 text-xs bg-[#0F1013] border border-[#1E2026] font-mono text-white outline-none focus:border-[#6366F1]"
+                  type="number"
+                  step="0.5"
+                  value={phase === 'Master' || phase === 'Funded' ? 0 : profitTargetPct}
+                  disabled={phase === 'Master' || phase === 'Funded'}
+                  onChange={e => setProfitTargetPct(Number(e.target.value))}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[#131418] border border-[#1E2026] text-emerald-400 font-bold outline-none disabled:opacity-40"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-[#8E95A5] mb-0.5">
+                  Daily DD Limit (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={dailyDrawdownLimitPct}
+                  onChange={e => setDailyDrawdownLimitPct(Number(e.target.value))}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[#131418] border border-[#1E2026] text-red-400 font-bold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-[#8E95A5] mb-0.5">
+                  Max DD Limit (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={maxDrawdownLimitPct}
+                  onChange={e => setMaxDrawdownLimitPct(Number(e.target.value))}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-xs bg-[#131418] border border-[#1E2026] text-red-400 font-bold outline-none"
                 />
               </div>
             </div>
-          )}
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-[#8E95A5] font-bold mb-1.5">
-              Account Notes
-            </label>
-            <input
-              type="text"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="e.g. Primary evaluation account on cTrader"
-              className="w-full rounded-xl px-3.5 py-2.5 text-xs bg-[#0F1013] border border-[#1E2026] text-white font-medium focus:border-[#6366F1] outline-none"
-            />
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1E2026]">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1E2026]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#8E95A5] hover:text-white bg-[#0F1013] hover:bg-[#181A20] transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8E95A5] hover:text-white bg-[#0F1013] hover:bg-[#181A20] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#6366F1] hover:bg-[#4F46E5] shadow-xs transition-all"
+              className={`px-6 py-2 rounded-xl text-xs font-bold text-white shadow-xs transition-all cursor-pointer ${
+                accountMode === 'real'
+                  ? 'bg-emerald-600 hover:bg-emerald-500'
+                  : 'bg-[#6366F1] hover:bg-[#4F46E5]'
+              }`}
             >
-              Create Account
+              {accountMode === 'real' ? 'Generate Real Account' : 'Generate Demo Account'}
             </button>
           </div>
         </form>
