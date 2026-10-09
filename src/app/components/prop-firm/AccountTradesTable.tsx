@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Minus, Link2 } from 'lucide-react';
 import type { Account } from '../../data/accountTypes';
 import type { Trade } from '../../data/types';
@@ -21,10 +21,17 @@ export const AccountTradesTable: React.FC<AccountTradesTableProps> = ({
   const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS' | 'BE'>('ALL');
   const [showLinkModal, setShowLinkModal] = useState(false);
 
-  const filteredTrades = trades.filter(t => {
-    if (filterResult === 'ALL') return true;
-    return t.result === filterResult;
-  });
+  const filteredTrades = useMemo(() => {
+    const list = trades.filter(t => {
+      if (filterResult === 'ALL') return true;
+      return t.result === filterResult;
+    });
+    return list.sort((a, b) => {
+      const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+      const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+      return timeB - timeA;
+    });
+  }, [trades, filterResult]);
 
   const closedTrades = trades.filter(t => t.status === 'CLOSED');
   const wins = closedTrades.filter(t => t.result === 'WIN').length;

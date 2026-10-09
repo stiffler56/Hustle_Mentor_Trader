@@ -8,16 +8,17 @@ const SELECTED_KEY = 'hustle_selected_account_v2';
 
 const defaultAccounts: Account[] = [
   {
-    id: 'acc-fp-50k-phase1',
+    id: 'acc-fp-50k-real',
     accountNumber: '#20823275',
-    name: 'FundingPips $50k Evaluation',
+    name: 'FundingPips Real $50k',
+    accountMode: 'real',
     category: 'prop_evaluation',
     provider: 'FundingPips',
-    platform: 'cTrader',
-    serverType: 'FundingPips-Demo',
+    platform: 'MetaTrader 5',
+    serverType: 'FundingPips-Server',
     initialBalance: 50000,
-    currentBalance: 52340.50,
-    currentEquity: 52340.50,
+    currentBalance: 50000,
+    currentEquity: 50000,
     currency: 'USD',
     status: 'Ongoing',
     startDate: '2026-03-01',
@@ -28,84 +29,60 @@ const defaultAccounts: Account[] = [
       dailyDrawdownLimitPct: 5,
       maxDrawdownLimitPct: 10,
       minTradingDays: 0,
-      tradingDaysLogged: 4,
+      tradingDaysLogged: 0,
       consistencyRulePct: 33,
       profitSplitPct: 85,
-      currentDailyLoss: 350.00,
-      currentMaxDrawdown: 850.00,
+      currentDailyLoss: 0,
+      currentMaxDrawdown: 0,
     },
-    todayPnl: 450.00,
-    totalPnl: 2340.50,
+    todayPnl: 0,
+    totalPnl: 0,
     consistencyScore: 2.08,
     consistencyMetrics: {
-      riskReward: 2.4,
+      riskReward: 2.0,
       stopLossUsagePct: 100,
-      winRate: 68,
+      winRate: 0,
     },
-    notes: 'Primary evaluation challenge on FundingPips.',
+    notes: 'Real live server account on Funding Pips with read-only investor MT5 sync.',
     isBreached: false,
   },
   {
-    id: 'acc-ftmo-100k-phase2',
-    accountNumber: '#78219432',
-    name: 'FTMO $100k Challenge',
+    id: 'acc-demo-100k-practice',
+    accountNumber: '#99482011',
+    name: 'FTMO Demo $100k Practice',
+    accountMode: 'demo',
     category: 'prop_evaluation',
     provider: 'FTMO',
     platform: 'MetaTrader 5',
-    serverType: 'FTMO-Server',
+    serverType: 'Demo Server',
     initialBalance: 100000,
-    currentBalance: 105420.00,
-    currentEquity: 105420.00,
+    currentBalance: 100000,
+    currentEquity: 100000,
     currency: 'USD',
-    status: 'Passed',
-    startDate: '2026-02-15',
+    status: 'Ongoing',
+    startDate: '2026-03-01',
     propDetails: {
       modelType: '2 Step Challenge',
-      phase: 'Phase 2',
-      profitTargetPct: 5,
+      phase: 'Phase 1',
+      profitTargetPct: 10,
       dailyDrawdownLimitPct: 5,
       maxDrawdownLimitPct: 10,
       minTradingDays: 4,
-      tradingDaysLogged: 6,
+      tradingDaysLogged: 0,
       consistencyRulePct: 40,
       profitSplitPct: 80,
       currentDailyLoss: 0,
-      currentMaxDrawdown: 1200.00,
+      currentMaxDrawdown: 0,
     },
     todayPnl: 0,
-    totalPnl: 5420.00,
-    consistencyScore: 2.85,
+    totalPnl: 0,
+    consistencyScore: 2.00,
     consistencyMetrics: {
-      riskReward: 2.8,
+      riskReward: 2.0,
       stopLossUsagePct: 100,
-      winRate: 72,
+      winRate: 0,
     },
-    notes: 'Passed Phase 2! Awaiting funded credentials.',
-    isBreached: false,
-  },
-  {
-    id: 'acc-icmarkets-live',
-    accountNumber: '#91823411',
-    name: 'IC Markets Raw ECN',
-    category: 'broker_live',
-    provider: 'IC Markets',
-    platform: 'cTrader',
-    serverType: 'Raw Spread Live',
-    initialBalance: 10000,
-    currentBalance: 11480.00,
-    currentEquity: 11480.00,
-    currency: 'USD',
-    status: 'Active',
-    startDate: '2026-01-10',
-    todayPnl: 120.00,
-    totalPnl: 1480.00,
-    consistencyScore: 2.30,
-    consistencyMetrics: {
-      riskReward: 2.1,
-      stopLossUsagePct: 98,
-      winRate: 64,
-    },
-    notes: 'Personal live broker account for personal swings.',
+    notes: 'Simulated demo challenge with custom starting money for edge testing.',
     isBreached: false,
   },
 ];
@@ -122,20 +99,35 @@ interface AccountsContextType {
   advancePhase: (id: string) => void;
   markStatus: (id: string, status: AccountStatus, isBreached?: boolean) => void;
   syncAccountMetricsFromTrades: (accountId: string) => void;
+  clearAllPreviousData: () => void;
   accountTrades: Trade[];
 }
 
 const AccountsContext = createContext<AccountsContextType | null>(null);
 
 export function AccountsProvider({ children }: { children: React.ReactNode }) {
-  const { trades } = useTradesContext();
+  const { trades, clearTrades } = useTradesContext();
 
   const [accounts, setAccounts] = useState<Account[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.map((a: any) => {
+            const mode = a.accountMode || (a.connection?.syncStatus === 'connected' || a.name?.toLowerCase().includes('real') || a.category === 'broker_live' ? 'real' : 'demo');
+            return {
+              ...a,
+              accountMode: mode,
+            };
+          }).filter((a: any) => {
+            // Remove legacy dead accounts
+            const isOldFtmo = a.id === 'acc-ftmo-100k-phase2';
+            const isOldIcMarkets = a.id === 'acc-icmarkets-live';
+            return !isOldFtmo && !isOldIcMarkets;
+          });
+          if (filtered.length > 0) return filtered;
+        }
       }
     } catch {}
     return defaultAccounts;
@@ -144,9 +136,11 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
     try {
       const saved = localStorage.getItem(SELECTED_KEY);
-      if (saved) return saved;
+      if (saved && saved !== 'acc-ftmo-100k-phase2' && saved !== 'acc-icmarkets-live') {
+        return saved;
+      }
     } catch {}
-    return accounts[0]?.id || null;
+    return defaultAccounts[0]?.id || 'acc-fp-50k-real';
   });
 
   // Save accounts to localStorage
@@ -163,7 +157,16 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) setAccounts(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const filtered = parsed.filter((a: any) => {
+              const nameLower = (a.name || '').toLowerCase();
+              const providerLower = (a.provider || '').toLowerCase();
+              const isFtmo = a.id === 'acc-ftmo-100k-phase2' || providerLower.includes('ftmo') || nameLower.includes('ftmo');
+              const isIcMarkets = a.id === 'acc-icmarkets-live' || providerLower.includes('ic market') || nameLower.includes('ic market');
+              return !isFtmo && !isIcMarkets;
+            });
+            setAccounts(filtered.length > 0 ? filtered : defaultAccounts);
+          }
         }
       } catch {}
     };
@@ -282,9 +285,11 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
 
   const addAccount = (accountData: Omit<Account, 'id' | 'startDate'> & { id?: string; startDate?: string }): Account => {
     const id = accountData.id || `acc-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const accountMode = accountData.accountMode || (accountData.category === 'broker_live' || accountData.connection?.syncStatus === 'connected' ? 'real' : 'demo');
     const newAcc: Account = {
       ...accountData,
       id,
+      accountMode,
       startDate: accountData.startDate || new Date().toISOString().split('T')[0],
       currentEquity: accountData.currentEquity ?? accountData.currentBalance,
       todayPnl: accountData.todayPnl ?? 0,
@@ -301,6 +306,20 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
     setSelectedAccountId(newAcc.id);
     return newAcc;
   };
+
+  const clearAllPreviousData = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SELECTED_KEY);
+      localStorage.removeItem('hustle_trading_v1');
+    } catch {}
+    clearTrades();
+    setAccounts(defaultAccounts);
+    setSelectedAccountId(defaultAccounts[0].id);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hustle_accounts_updated', { detail: { accountId: defaultAccounts[0].id } }));
+    }
+  }, [clearTrades]);
 
   const updateAccount = (id: string, updates: Partial<Account>) => {
     setAccounts(prev => prev.map(acc => {
@@ -411,6 +430,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
         advancePhase,
         markStatus,
         syncAccountMetricsFromTrades,
+        clearAllPreviousData,
         accountTrades,
       }}
     >
