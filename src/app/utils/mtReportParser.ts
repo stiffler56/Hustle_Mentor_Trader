@@ -141,6 +141,12 @@ function parseMtHtmlReport(html: string, accountId: string): ParsedMtReport {
     });
   }
 
+  trades.sort((a, b) => {
+    const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+    const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+    return timeB - timeA;
+  });
+
   return { trades, balance: detectedBalance };
 }
 
@@ -210,6 +216,12 @@ function parseMtCsvReport(csv: string, accountId: string): ParsedMtReport {
       notes: `Imported ticket #${ticket} (${symbol})`,
     });
   }
+
+  trades.sort((a, b) => {
+    const timeA = new Date(a.closedAt || a.createdAt || a.date).getTime();
+    const timeB = new Date(b.closedAt || b.createdAt || b.date).getTime();
+    return timeB - timeA;
+  });
 
   return { trades };
 }
