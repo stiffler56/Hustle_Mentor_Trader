@@ -77,7 +77,7 @@ export interface MetaApiHealthStatus {
 
 export class MetaApiClient {
   private static defaultToken: string = '';
-  private static defaultAccountId: string = '55d52489-ecfa-4712-8b32-f54a669e129e';
+  private static defaultAccountId: string = '';
 
   /**
    * Retrieves active credentials from localStorage or env vars
@@ -301,5 +301,107 @@ export class MetaApiClient {
       name: account?.name,
       platform: account?.platform,
     };
+  }
+
+  /**
+   * 5. Get all accounts provisioned under current token
+   */
+  public static async getProvisionedAccounts(tokenOverride?: string): Promise<any[]> {
+    const { token } = this.getCredentials();
+    const authToken = tokenOverride || token;
+    if (!authToken) throw new Error('MetaApi auth token is missing.');
+
+    const provBases = this.getProvisioningBaseUrls();
+    const res = await this.executeWithFallback(provBases, '/users/current/accounts', authToken);
+    return Array.isArray(res) ? res : [];
+  }
+
+  /**
+   * 6. Find existing provisioned account matching login number
+   */
+  public static async findAccountByLogin(login: string, tokenOverride?: string): Promise<any | null> {
+    const accounts = await this.getProvisionedAccounts(tokenOverride);
+    const cleanLogin = String(login).replace(/#/g, '').trim();
+    return accounts.find((a: any) => String(a.login).replace(/#/g, '').trim() === cleanLogin) || null;
+  }
+
+  /**
+   * 7. Provision new MT4 / MT5 account on MetaApi
+   */
+  public static async provisionAccount(
+    params: {
+      name?: string;
+      login: string;
+      server: string;
+      password?: string;
+      platform?: string;
+    },
+    tokenOverride?: string
+  ): Promise<any> {
+    const { token } = this.getCredentials();
+    const authToken = tokenOverride || token;
+    if (!authToken) throw new Error('MetaApi auth token is missing.');
+
+    const provBases = this.getProvisioningBaseUrls();
+    const cleanLogin = String(params.login).replace(/#/g, '').trim();
+
+    return await this.executeWithFallback(provBases, '/users/current/accounts', authToken, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: params.name || `FundingPips-${cleanLogin}`,
+        type: 'cloud',
+        login: cleanLogin,
+        server: params.server.trim(),
+        password: params.password?.trim(),
+        platform: (params.platform || 'mt5').toLowerCase(),
+        magic: 0,
+        quoteStreamingIntervalInSeconds: 2.5,
+      }),
+    });
+  }
+
+  /**
+   * 8. Deploy account to server
+   */
+  public static async deployAccount(accountId: string, tokenOverride?: string): Promise<void> {
+    const { token } = this.getCredentials();
+    const authToken = tokenOverride || token;
+    if (!authToken) throw new Error('MetaApi auth token is missing.');
+
+    const provBases = this.getProvisioningBaseUrls();
+    await this.executeWithFallback(provBases, `/users/current/accounts/${accountId}/deploy`, authToken, {
+      method: 'POST',
+    }).catch(() => {});
+  }
+
+  /**
+   * 9. Wait for account to be deployed and connected to broker
+   */
+  public static async waitForConnected(
+    accountId: string,
+    tokenOverride?: string,
+    maxWaitMs: number = 25000,
+    onStatus?: (statusText: string) => void
+  ): Promise<MetaApiHealthStatus> {
+    const start = Date.now();
+    let health = await this.getConnectionHealth(accountId, tokenOverride);
+
+    while (Date.now() - start < maxWaitMs) {
+      if (health.isDeployed && health.isConnected) {
+        return health;
+      }
+
+      if (!health.isDeployed) {
+        onStatus?.(`Deploying MT5 terminal on cloud (${health.state})...`);
+        await this.deployAccount(accountId, tokenOverride).catch(() => {});
+      } else {
+        onStatus?.(`Connecting terminal to ${health.server || 'broker'} (${health.connectionStatus})...`);
+      }
+
+      await new Promise((r) => setTimeout(r, 2500));
+      health = await this.getConnectionHealth(accountId, tokenOverride).catch(() => health);
+    }
+
+    return health;
   }
 }
