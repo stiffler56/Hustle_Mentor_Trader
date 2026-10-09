@@ -187,117 +187,12 @@ app.put("/make-server-4363d7a5/trades", async (c) => {
 });
 
 // ── Broker Sync: Helpers ───────────────────────────────────────────────────
-// ponytail: MetaApi REST bridge used when METAAPI_API_KEY is present; falls back to sandbox MT4/MT5 investor emulator. Upgrade to streaming WebSocket RPC when sub-second ticks required.
 function determineTradeSession(d: Date): 'New York' | 'London' | 'Tokyo' | 'Sydney' {
   const h = d.getUTCHours();
   if (h >= 13 && h < 21) return 'New York';
   if (h >= 7 && h < 15) return 'London';
   if (h >= 0 && h < 9) return 'Tokyo';
   return 'Sydney';
-}
-
-function generateMockMtTrades(accountId: string, login: string, server: string, platform: 'MT4' | 'MT5') {
-  const now = Date.now();
-  const pairs = ['EURUSD', 'GBPUSD', 'NAS100', 'XAUUSD', 'USDJPY'];
-  const baseTicket = Math.abs(parseInt(login, 10) || 5000000);
-
-  const mockDeals = [
-    {
-      ticket: baseTicket + 101,
-      pair: pairs[0],
-      type: 'Buy',
-      openTime: new Date(now - 86400000 * 2).toISOString(),
-      closeTime: new Date(now - 86400000 * 2 + 3600000 * 4).toISOString(),
-      entryPrice: 1.08420,
-      exitPrice: 1.08950,
-      profit: 450.00,
-      commission: -7.00,
-      swap: -1.50,
-      volume: 1.0,
-      status: 'CLOSED' as const,
-    },
-    {
-      ticket: baseTicket + 102,
-      pair: pairs[1],
-      type: 'Sell',
-      openTime: new Date(now - 86400000).toISOString(),
-      closeTime: new Date(now - 86400000 + 3600000 * 2).toISOString(),
-      entryPrice: 1.27500,
-      exitPrice: 1.27210,
-      profit: 290.00,
-      commission: -7.00,
-      swap: 0,
-      volume: 1.0,
-      status: 'CLOSED' as const,
-    },
-    {
-      ticket: baseTicket + 103,
-      pair: pairs[3],
-      type: 'Buy',
-      openTime: new Date(now - 3600000 * 5).toISOString(),
-      closeTime: new Date(now - 3600000 * 1).toISOString(),
-      entryPrice: 2315.50,
-      exitPrice: 2309.20,
-      profit: -180.00,
-      commission: -5.00,
-      swap: 0,
-      volume: 0.5,
-      status: 'CLOSED' as const,
-    },
-    {
-      ticket: baseTicket + 104,
-      pair: pairs[2],
-      type: 'Buy',
-      openTime: new Date(now - 3600000 * 2).toISOString(),
-      closeTime: undefined,
-      entryPrice: 18250.00,
-      exitPrice: 18320.00,
-      profit: 140.00,
-      commission: -3.50,
-      swap: 0,
-      volume: 0.5,
-      status: 'OPEN' as const,
-    },
-  ];
-
-  return mockDeals.map((deal) => {
-    const openDate = new Date(deal.openTime);
-    const session = determineTradeSession(openDate);
-    const totalPnl = Number((deal.profit + deal.commission + deal.swap).toFixed(2));
-    const result = deal.status === 'OPEN' ? undefined : (totalPnl > 0 ? 'WIN' : totalPnl < 0 ? 'LOSS' : 'BE');
-
-    return {
-      id: `mt-${deal.ticket}`,
-      brokerTradeId: String(deal.ticket),
-      accountId,
-      date: openDate.toISOString().split('T')[0],
-      pair: deal.pair,
-      trend: deal.type === 'Buy' ? 'Bullish' : 'Bearish',
-      orderType: deal.type as 'Buy' | 'Sell',
-      session,
-      strategy: 'Order Block',
-      bais: 'MT Investor Sync',
-      mentalFocus: 8,
-      confluences: 3,
-      buyLowSellHigh: 8,
-      bias: 8,
-      risk: 1.0,
-      rrRatio: 2.2,
-      score: 82,
-      decision: 'TAKE' as const,
-      result,
-      pnl: totalPnl,
-      status: deal.status,
-      createdAt: deal.openTime,
-      closedAt: deal.closeTime,
-      entryPrice: deal.entryPrice,
-      exitPrice: deal.exitPrice,
-      quantity: deal.volume,
-      commission: deal.commission,
-      swap: deal.swap,
-      notes: `Auto-synced MT ticket #${deal.ticket} (${platform} on ${server})`,
-    };
-  });
 }
 
 // ── POST /broker/connect ───────────────────────────────────────────────────
@@ -316,7 +211,7 @@ app.post("/make-server-4363d7a5/broker/connect", async (c) => {
       return c.json({ error: "Investor (read-only) password is required" }, 400);
     }
     if (!server || !String(server).trim()) {
-      return c.json({ error: "Server name is required (e.g. ICMarketsSC-Live01)" }, 400);
+      return c.json({ error: "Server name is required (e.g. FundingPips-Server)" }, 400);
     }
 
     const metaApiKey = Deno.env.get('METAAPI_API_KEY') || Deno.env.get('METAAPI_TOKEN');
@@ -491,10 +386,6 @@ app.post("/make-server-4363d7a5/broker/sync", async (c) => {
       } catch (metaErr) {
         console.log('MetaApi fetch error, falling back:', metaErr);
       }
-    }
-
-    if (fetchedTrades.length === 0) {
-      fetchedTrades = generateMockMtTrades(accountId, connection.login, connection.server, connection.platform);
     }
 
     return c.json({
